@@ -10,7 +10,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed:hiring": "node scripts/seed-hiring.mjs",
     "test:hiring": "node scripts/test-hiring.mjs",
-    "test:cycle16": "node scripts/test-cycle16.mjs"
+    "test:cycle16": "node scripts/test-cycle16.mjs",
+    "setup:local": "node scripts/setup-local.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
