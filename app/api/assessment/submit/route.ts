@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import {NextResponse} from 'next/server';
 import {getAssessment} from '@/lib/assessment-catalog';
+import {consultEvidenceCoach} from '@/lib/agents/evidence-coach';
 import {requireCandidate,withAuthenticatedClient} from '@/lib/server-auth';
 import {verifyAssessment} from '@/lib/assessment-verifier';
 import {verifyCandidateSqlIsolated} from '@/lib/verification/duckdb-engine';
@@ -52,6 +53,14 @@ export async function POST(request:Request){
   const verificationTier=sandboxVerified?'SANDBOX_REPRODUCED':'CLIENT_EVALUATED';
   const artifactSha=candidateSql?crypto.createHash('sha256').update(candidateSql).digest('hex'):null;
   const safeEvents=events.slice(-200).map((e:any)=>({type:typeof e.type==='string'?e.type.slice(0,40):'UNKNOWN',at:typeof e.at==='string'?e.at:null}));
+  const coach=await consultEvidenceCoach({
+   status:outcome,
+   domain:sessionContext.assessment.capabilityName,
+   astViolations:astAnalysis?.detectedViolations||[],
+   failedAssertions:executionResults?.assertions.filter(a=>!a.passed).map(a=>a.name)||[],
+   candidateReasoning:normalizedAnswers.find(a=>a.probe===2)?.answer||'',
+   executionDurationMs:executionResults?.assertions[0]?.durationMs||0,
+  });
 
   const result=await withAuthenticatedClient(async(s,client)=>{
    const current=await client.query(`SELECT a.*,cn.slug capability_slug FROM assessment_sessions a JOIN capability_nodes cn ON cn.id=a.capability_node_id WHERE a.id=$1 AND a.user_id=$2 AND a.status='IN_PROGRESS' FOR UPDATE`,[sessionId,s.userId]);
@@ -70,7 +79,7 @@ export async function POST(request:Request){
     `Target role: ${row.target_role}; seniority: ${row.seniority}; server-side multi-probe verification with workspace-scoped telemetry.${sandboxVerified?' SQL AST allowlist and isolated DuckDB execution passed.':candidateSql?' SQL isolated verification was attempted but did not establish independent reproduction.':''}`,
     normalizedAnswers.map((a:SubmittedAnswer)=>`Probe ${a.probe}\n${a.answer}`).join('\n\n'),JSON.stringify(textual.evaluations),astAnalysis?JSON.stringify(astAnalysis.astFingerprint):null,executionResults?JSON.stringify(executionResults.assertions):null,executionResults?.executionDigest||null,artifactSha]);
    await client.query(`INSERT INTO user_capability_states(user_id,capability_node_id,state,last_demonstrated_at,last_observed_at,evidence_count) VALUES($1,$2,$3,CASE WHEN $3='DEMONSTRATED' THEN clock_timestamp() ELSE NULL END,clock_timestamp(),1) ON CONFLICT(user_id,capability_node_id) DO UPDATE SET state=CASE WHEN $3='DEMONSTRATED' THEN 'DEMONSTRATED' WHEN user_capability_states.state='DEMONSTRATED' THEN user_capability_states.state ELSE $3 END,last_demonstrated_at=CASE WHEN $3='DEMONSTRATED' THEN clock_timestamp() ELSE user_capability_states.last_demonstrated_at END,last_observed_at=clock_timestamp(),evidence_count=user_capability_states.evidence_count+1`,[s.userId,row.capability_node_id,outcome]);
-   return {outcome,passed:textual.passed,evaluations:textual.evaluations,capability:assessment.capabilityName,evidenceId:evidence.rows[0].id,verificationTier,astAnalysis,execution:executionResults?{allPassed:executionResults.allPassed,executionDigest:executionResults.executionDigest,assertions:executionResults.assertions}:null};
+   return {outcome,passed:textual.passed,evaluations:textual.evaluations,capability:assessment.capabilityName,evidenceId:evidence.rows[0].id,verificationTier,astAnalysis,execution:executionResults?{allPassed:executionResults.allPassed,executionDigest:executionResults.executionDigest,assertions:executionResults.assertions}:null,coach};
   });
   return NextResponse.json(result);
  }catch(error){
