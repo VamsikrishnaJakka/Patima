@@ -5,14 +5,21 @@ const envPath=new URL('../.env.local',import.meta.url);
 let envText='';
 try{envText=readFileSync(envPath,'utf8');}catch{console.error('[PATIMA] .env.local is required for local auth verification.');process.exit(1);}
 
-function envValue(name){
-  const pattern=new RegExp(`^\\s*${name}\\s*=\\s*[\"']?([^\"'\\r\\n]+)[\"']?\\s*$`,'m');
-  return envText.match(pattern)?.[1]?.trim()||'';
+function envValue(text,name){
+  for(const rawLine of text.split(/\r?\n/)){
+    const line=rawLine.trim();
+    const separator=line.indexOf('=');
+    if(separator<0||line.slice(0,separator).trim()!==name)continue;
+    let value=line.slice(separator+1).trim();
+    if(value.length>=2&&((value.startsWith('"')&&value.endsWith('"'))||(value.startsWith("'")&&value.endsWith("'"))))value=value.slice(1,-1);
+    return value;
+  }
+  return '';
 }
 
 const baseUrl=(process.env.PATIMA_LOCAL_BASE_URL||'http://localhost:3000').replace(/\/$/,'');
-const candidatePassword=envValue('PATIMA_SEED_CANDIDATE_PASSWORD');
-const employerPassword=envValue('PATIMA_SEED_EMPLOYER_PASSWORD');
+const candidatePassword=envValue(envText,'PATIMA_SEED_CANDIDATE_PASSWORD');
+const employerPassword=envValue(envText,'PATIMA_SEED_EMPLOYER_PASSWORD');
 if(!candidatePassword||!employerPassword){console.error('[PATIMA] Seed passwords are missing from .env.local. Run npm run setup:local first.');process.exit(1);}
 
 async function check(email,password,expectedRole){
