@@ -6,6 +6,8 @@ import {verifyAssessment} from '@/lib/assessment-verifier';
 import {inspectSqlAst} from '@/lib/verification/sql-ast';
 import {executeBehavioralAssertions} from '@/lib/verification/sql-engine';
 
+type SubmittedAnswer={probe:number;answer:string};
+
 export async function POST(request:Request){
  try{
   const session=await requireCandidate();
@@ -24,15 +26,15 @@ export async function POST(request:Request){
     await client.query(`UPDATE assessment_sessions SET status='EXPIRED',updated_at=clock_timestamp() WHERE id=$1`,[sessionId]);throw new Error('ASSESSMENT_EXPIRED');
    }
    const assessment=getAssessment(row.domain_slug);if(!assessment)throw new Error('ASSESSMENT_UNAVAILABLE');
-   const normalizedAnswers=answers.map((a:any)=>({probe:Number(a.probe),answer:typeof a.answer==='string'?a.answer.slice(0,12000):''}));
-   const uniqueProbes=new Set(normalizedAnswers.map(a=>a.probe));
+   const normalizedAnswers:SubmittedAnswer[]=answers.map((a:any)=>({probe:Number(a.probe),answer:typeof a.answer==='string'?a.answer.slice(0,12000):''}));
+   const uniqueProbes=new Set(normalizedAnswers.map((a:SubmittedAnswer)=>a.probe));
    if(uniqueProbes.size!==3||[1,2,3].some(n=>!uniqueProbes.has(n)))throw new Error('INVALID_PROBE_SET');
 
    const textual=verifyAssessment(assessment,normalizedAnswers);
    let outcome=textual.outcome;
    let astAnalysis:any=null;
    let executionResults:any=null;
-   const candidateSql=assessment.slug==='sql-window-functions'?normalizedAnswers.map(a=>a.answer).find(a=>/\b(?:select|with)\b/i.test(a)&&/\buser_events\b/i.test(a))||'':'';
+   const candidateSql=assessment.slug==='sql-window-functions'?normalizedAnswers.map((a:SubmittedAnswer)=>a.answer).find((a:string)=>/\b(?:select|with)\b/i.test(a)&&/\buser_events\b/i.test(a))||'':'';
    if(assessment.slug==='sql-window-functions'){
     if(!candidateSql)outcome='DEVELOPING';
     else{
@@ -40,7 +42,7 @@ export async function POST(request:Request){
      if(astAnalysis.valid){
       executionResults=await executeBehavioralAssertions(client,candidateSql);
       const passedAssertions=executionResults.assertions.filter((a:any)=>a.passed).length;
-      await client.query(`INSERT INTO assessment_execution_runs(session_id,probe_index,submitted_code,ast_tree,assertions_passed,assertions_total,execution_time_ms,output_hash) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7,$8)`,[sessionId,normalizedAnswers.find(a=>a.answer===candidateSql)?.probe||1,candidateSql,JSON.stringify(astAnalysis.astFingerprint),passedAssertions,executionResults.assertions.length,executionResults.assertions[0]?.durationMs||0,executionResults.executionDigest]);
+      await client.query(`INSERT INTO assessment_execution_runs(session_id,probe_index,submitted_code,ast_tree,assertions_passed,assertions_total,execution_time_ms,output_hash) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7,$8)`,[sessionId,normalizedAnswers.find((a:SubmittedAnswer)=>a.answer===candidateSql)?.probe||1,candidateSql,JSON.stringify(astAnalysis.astFingerprint),passedAssertions,executionResults.assertions.length,executionResults.assertions[0]?.durationMs||0,executionResults.executionDigest]);
       if(!(executionResults.allPassed&&textual.outcome==='DEMONSTRATED'))outcome=textual.outcome==='DEMONSTRATED'?'PROVISIONAL':textual.outcome;
      }else outcome='DEVELOPING';
     }
@@ -56,7 +58,7 @@ export async function POST(request:Request){
     sessionId,s.userId,row.capability_node_id,verificationTier,
     `${assessment.title}: ${outcome} across ${textual.passed}/3 calibrated probes.`,
     `Target role: ${row.target_role}; seniority: ${row.seniority}; server-side multi-probe verification with workspace-scoped telemetry.${sandboxVerified?' SQL AST inspection and deterministic sandbox execution passed.':candidateSql?' SQL AST/execution evidence was attempted but did not establish independent reproduction.':''}`,
-    normalizedAnswers.map((a:any)=>`Probe ${a.probe}\n${a.answer}`).join('\n\n'),JSON.stringify(textual.evaluations),astAnalysis?JSON.stringify(astAnalysis.astFingerprint):null,executionResults?JSON.stringify(executionResults.assertions):null,executionResults?.executionDigest||null,artifactSha]);
+    normalizedAnswers.map((a:SubmittedAnswer)=>`Probe ${a.probe}\n${a.answer}`).join('\n\n'),JSON.stringify(textual.evaluations),astAnalysis?JSON.stringify(astAnalysis.astFingerprint):null,executionResults?JSON.stringify(executionResults.assertions):null,executionResults?.executionDigest||null,artifactSha]);
 
    await client.query(`INSERT INTO user_capability_states(user_id,capability_node_id,state,last_demonstrated_at,last_observed_at,evidence_count) VALUES($1,$2,$3,CASE WHEN $3='DEMONSTRATED' THEN clock_timestamp() ELSE NULL END,clock_timestamp(),1) ON CONFLICT(user_id,capability_node_id) DO UPDATE SET state=CASE WHEN $3='DEMONSTRATED' THEN 'DEMONSTRATED' WHEN user_capability_states.state='DEMONSTRATED' THEN user_capability_states.state ELSE $3 END,last_demonstrated_at=CASE WHEN $3='DEMONSTRATED' THEN clock_timestamp() ELSE user_capability_states.last_demonstrated_at END,last_observed_at=clock_timestamp(),evidence_count=user_capability_states.evidence_count+1`,[s.userId,row.capability_node_id,outcome]);
 
