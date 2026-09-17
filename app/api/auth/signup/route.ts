@@ -1,0 +1,3 @@
+import {NextResponse} from 'next/server';
+import {createUser, establishSession} from '@/lib/server-auth';
+export async function POST(request:Request){try{const b=await request.json();const u=await createUser(String(b.name||''),String(b.email||''),String(b.password||''));await establishSession(u.id);return NextResponse.json({user:{id:u.id,name:u.name,email:u.email,handle:u.handle,role:u.role}},{status:201});}catch(e:any){if(e?.code==='23505')return NextResponse.json({error:'An account already exists for this email.'},{status:409});return NextResponse.json({error:e instanceof Error?e.message:'Could not create account'},{status:400});}}
