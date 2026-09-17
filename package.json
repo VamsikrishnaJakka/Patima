@@ -15,11 +15,13 @@
     "test:local-auth": "node scripts/test-local-auth.mjs",
     "test:rls-crosstalk": "tsx tests/rls_crosstalk_gate.ts",
     "test:runtime": "tsx tests/sql_verification_runtime.test.ts",
+    "test:evidence-coach": "tsx tests/evidence_coach.test.ts",
     "setup:local": "node scripts/setup-local.mjs"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5",
     "@duckdb/duckdb-wasm": "^1.29.0",
+    "@google/genai": "^1.16.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.395.0",
     "next": "^14.2.4",
