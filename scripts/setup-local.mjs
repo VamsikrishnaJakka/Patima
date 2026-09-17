@@ -13,7 +13,10 @@ function run(command,args,options={}){
   try{
     execFileSync(command,args,{stdio:'inherit',cwd:root,...options});
   }catch(error){
-    throw new Error(`Command failed: ${command} ${args.join(' ')}`);
+    const status=error && typeof error==='object' && 'status' in error ? error.status : null;
+    const signal=error && typeof error==='object' && 'signal' in error ? error.signal : null;
+    const detail=status!==null?` exited with code ${status}`:signal?` terminated by ${signal}`:' failed to execute';
+    throw new Error(`${command} ${args.join(' ')}${detail}. See the command output above for the underlying error.`);
   }
 }
 
