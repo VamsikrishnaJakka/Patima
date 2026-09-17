@@ -38,6 +38,14 @@ function assertDockerDaemon(){
   }
 }
 
+function assertNodeDependencies(){
+  const requiredPackages=['pg','next','react','react-dom'];
+  const missing=requiredPackages.filter((name)=>!existsSync(path.join(root,'node_modules',name,'package.json')));
+  if(missing.length){
+    throw new Error(`Required npm dependencies are missing: ${missing.join(', ')}. Run \'npm install\' once in the repository, then retry \'npm run setup:local\'.`);
+  }
+}
+
 try{
   if(!existsSync(envPath)){
     writeFileSync(envPath,`DATABASE_URL=${localDatabaseUrl}\nNODE_ENV=development\n`,'utf8');
@@ -51,6 +59,7 @@ try{
 
   if(!process.env.NODE_ENV) process.env.NODE_ENV='development';
 
+  assertNodeDependencies();
   assertDockerDaemon();
 
   let containerId='';
