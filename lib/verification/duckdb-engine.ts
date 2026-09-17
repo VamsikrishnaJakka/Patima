@@ -6,6 +6,7 @@ export interface BehavioralAssertionResult{name:string;passed:boolean;observedOu
 export interface IsolatedVerificationResult{allPassed:boolean;assertions:BehavioralAssertionResult[];executionDigest:string;astValidation:SqlAstVerificationResult;error?:string;}
 
 const ZERO='0'.repeat(64);
+const EXECUTION_TIMEOUT_MS=1000;
 const fixtureRows=[
  ['8f12a100-0001-4000-8000-000000000001','usr_1','2026-09-17 14:00:00','PAGE_VIEW'],
  ['8f12a100-0002-4000-8000-000000000002','usr_1','2026-09-17 14:15:00','CLICK'],
@@ -30,9 +31,15 @@ function validateExecutionSql(sql:string){
  }
  return sql;
 }
-
-function normalizeRows(rows:Record<string,unknown>[]){
- return rows.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,typeof value==='bigint'?Number(value):value instanceof Date?value.toISOString():value])));
+function normalizeRows(rows:Record<string,unknown>[]){return rows.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,typeof value==='bigint'?Number(value):value instanceof Date?value.toISOString():value])));}
+async function runBounded(connection:any,sql:string){
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ try{
+  return await Promise.race([
+   connection.runAndReadAll(sql),
+   new Promise<never>((_,reject)=>{timer=setTimeout(async()=>{try{await connection.interrupt?.();}catch{}reject(new Error('SQL execution exceeded the 1000ms sandbox timeout.'));},EXECUTION_TIMEOUT_MS);}),
+  ]);
+ }finally{if(timer)clearTimeout(timer);}
 }
 
 export async function verifyCandidateSqlIsolated(candidateSql:string):Promise<IsolatedVerificationResult>{
@@ -50,7 +57,7 @@ export async function verifyCandidateSqlIsolated(candidateSql:string):Promise<Is
   const values=fixtureRows.map(row=>`('${row[0]}','${row[1]}',TIMESTAMP '${row[2]}','${row[3]}')`).join(',');
   await connection.run(`INSERT INTO user_events VALUES ${values}`);
   const executionStart=performance.now();
-  const reader=await connection.runAndReadAll(executable);
+  const reader=await runBounded(connection,executable);
   const duration=Math.round((performance.now()-executionStart)*100)/100;
   const rows=normalizeRows(reader.getRowObjects() as Record<string,unknown>[]);
   assertions.push(assertion('Five fixture rows returned',rows.length===5,`Returned ${rows.length} rows`,'Returned 5 rows',duration));
@@ -67,7 +74,5 @@ export async function verifyCandidateSqlIsolated(candidateSql:string):Promise<Is
   const message=error instanceof Error?error.message:String(error);
   assertions.push(assertion('Isolated DuckDB execution',false,`Runtime execution error: ${message}`,'Clean execution against the controlled in-memory fixture',duration));
   return {allPassed:false,assertions,executionDigest:ZERO,astValidation,error:message};
- }finally{
-  try{connection?.disconnectSync?.();}catch{}
- }
+ }finally{try{connection?.disconnectSync?.();}catch{} }
 }
