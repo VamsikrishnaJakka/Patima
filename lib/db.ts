@@ -25,13 +25,18 @@ export async function query<T extends QueryResultRow = QueryResultRow>(text: str
   return pool.query<T>(text, params);
 }
 
-export async function withSessionClient<T>(userId: string, callback: (client: PoolClient) => Promise<T>): Promise<T> {
+export async function withSessionClient<T>(
+  userId: string,
+  callback: (client: PoolClient) => Promise<T>,
+  employerAccountId?: string | null,
+): Promise<T> {
   if (!userId) throw new Error('INVALID_SESSION_CONTEXT');
   assertDatabaseConfigured();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query('SELECT set_config($1, $2, true)', ['app.current_user_id', userId]);
+    await client.query('SELECT set_config($1, $2, true)', ['app.current_employer_account_id', employerAccountId || '']);
     const result = await callback(client);
     await client.query('COMMIT');
     return result;
