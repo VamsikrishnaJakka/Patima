@@ -21,6 +21,20 @@ function commandOutput(command,args){
   return execFileSync(command,args,{encoding:'utf8',cwd:root}).trim();
 }
 
+function assertDockerDaemon(){
+  try{
+    const version=commandOutput('docker',['version','--format','{{.Server.Version}}']);
+    if(!version) throw new Error('Docker Desktop is running, but the Docker Engine did not return a server version.');
+    console.log(`[PATIMA] Docker Engine ${version} is available.`);
+  }catch(error){
+    const message=error instanceof Error?error.message:String(error);
+    if(message.includes('ENOENT')){
+      throw new Error('Docker CLI is not installed or is not available on PATH. Install Docker Desktop, then retry.');
+    }
+    throw new Error('Docker Desktop is installed, but the Docker Engine is not running. Start Docker Desktop and wait until the engine is ready, then retry.');
+  }
+}
+
 try{
   if(!existsSync(envPath)){
     writeFileSync(envPath,`DATABASE_URL=${localDatabaseUrl}\nNODE_ENV=development\n`,'utf8');
@@ -34,7 +48,7 @@ try{
 
   if(!process.env.NODE_ENV) process.env.NODE_ENV='development';
 
-  run('docker',['version','--format','{{.Server.Version}}']);
+  assertDockerDaemon();
 
   let containerId='';
   try{
