@@ -24,8 +24,6 @@ ALTER TABLE assessment_sessions
   ADD CONSTRAINT assessment_sessions_status_check
   CHECK (status IN ('IN_PROGRESS','SUBMITTED','VERIFIED','EXPIRED'));
 
-ALTER TABLE assessment_sessions
-  DROP POLICY IF EXISTS p_assessment_sessions_candidate;
 DROP POLICY IF EXISTS p_assessment_sessions_candidate ON assessment_sessions;
 CREATE POLICY p_assessment_sessions_candidate ON assessment_sessions FOR ALL TO PUBLIC
   USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid)
