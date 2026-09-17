@@ -11,6 +11,7 @@
     "db:seed:hiring": "node scripts/seed-hiring.mjs",
     "test:hiring": "node scripts/test-hiring.mjs",
     "test:cycle16": "node scripts/test-cycle16.mjs",
+    "test:assessment": "node scripts/test-assessment.mjs",
     "test:local-auth": "node scripts/test-local-auth.mjs",
     "setup:local": "node scripts/setup-local.mjs"
   },
