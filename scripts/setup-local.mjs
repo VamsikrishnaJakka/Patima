@@ -10,48 +10,35 @@ const localDatabaseUrl='postgresql://postgres:postgres@localhost:5432/patima_dev
 
 function run(command,args,options={}){
   console.log(`[PATIMA] ${command} ${args.join(' ')}`);
-  try{
-    execFileSync(command,args,{stdio:'inherit',cwd:root,...options});
-  }catch(error){
-    const status=error && typeof error==='object' && 'status' in error ? error.status : null;
-    const signal=error && typeof error==='object' && 'signal' in error ? error.signal : null;
+  try{execFileSync(command,args,{stdio:'inherit',cwd:root,...options});}
+  catch(error){
+    const status=error && typeof error==='object' && 'status' in error ? error.status:null;
+    const signal=error && typeof error==='object' && 'signal' in error ? error.signal:null;
     const detail=status!==null?` exited with code ${status}`:signal?` terminated by ${signal}`:' failed to execute';
     throw new Error(`${command} ${args.join(' ')}${detail}. See the command output above for the underlying error.`);
   }
 }
 
-function commandOutput(command,args){
-  return execFileSync(command,args,{encoding:'utf8',cwd:root}).trim();
-}
-
-function envValue(text,name){
-  const pattern=new RegExp(`^\\s*${name}\\s*=\\s*["']?([^"'\\r\\n]+)["']?\\s*$`,'m');
-  return text.match(pattern)?.[1]?.trim()||'';
-}
-
-function upsertEnvLine(text,name,value){
-  const line=`${name}=${value}`;
-  const pattern=new RegExp(`^\\s*${name}\\s*=.*$`,'m');
-  if(pattern.test(text)) return text.replace(pattern,line);
-  return `${text.trimEnd()}\\n${line}\\n`;
-}
+function commandOutput(command,args){return execFileSync(command,args,{encoding:'utf8',cwd:root}).trim();}
+function envValue(text,name){const pattern=new RegExp(`^\\s*${name}\\s*=\\s*["']?([^"'\\r\\n]+)["']?\\s*$`,'m');return text.match(pattern)?.[1]?.trim()||'';}
+function upsertEnvLine(text,name,value){const line=`${name}=${value}`;const pattern=new RegExp(`^\\s*${name}\\s*=.*$`,'m');if(pattern.test(text))return text.replace(pattern,line);return `${text.trimEnd()}\\n${line}\\n`;}
 
 function assertDockerDaemon(){
   try{
     const version=commandOutput('docker',['version','--format','{{.Server.Version}}']);
-    if(!version) throw new Error('Docker Desktop is running, but the Docker Engine did not return a server version.');
+    if(!version)throw new Error('Docker Desktop is running, but the Docker Engine did not return a server version.');
     console.log(`[PATIMA] Docker Engine ${version} is available.`);
   }catch(error){
     const message=error instanceof Error?error.message:String(error);
-    if(message.includes('ENOENT')) throw new Error('Docker CLI is not installed or is not available on PATH. Install Docker Desktop, then retry.');
+    if(message.includes('ENOENT'))throw new Error('Docker CLI is not installed or is not available on PATH. Install Docker Desktop, then retry.');
     throw new Error('Docker Desktop is installed, but the Docker Engine is not running. Start Docker Desktop and wait until the engine is ready, then retry.');
   }
 }
 
 function assertNodeDependencies(){
   const requiredPackages=['pg','next','react','react-dom'];
-  const missing=requiredPackages.filter((name)=>!existsSync(path.join(root,'node_modules',name,'package.json')));
-  if(missing.length) throw new Error(`Required npm dependencies are missing: ${missing.join(', ')}. Run 'npm install' once in the repository, then retry 'npm run setup:local'.`);
+  const missing=requiredPackages.filter(name=>!existsSync(path.join(root,'node_modules',name,'package.json')));
+  if(missing.length)throw new Error(`Required npm dependencies are missing: ${missing.join(', ')}. Run 'npm install' once in the repository, then retry 'npm run setup:local'.`);
 }
 
 try{
@@ -60,16 +47,20 @@ try{
     console.log('[PATIMA] Created .env.local for local PostgreSQL development.');
   }
 
-  let envText=readFileSync(envPath,'utf8');
+  const originalEnvText=readFileSync(envPath,'utf8');
+  let envText=originalEnvText;
   const databaseMatch=envText.match(/^\s*DATABASE_URL\s*=\s*["']?([^"'\r\n]+)["']?\s*$/m);
   const databaseUrl=(process.env.DATABASE_URL||(databaseMatch?.[1]||localDatabaseUrl)).trim();
-  if(!databaseUrl) throw new Error('DATABASE_URL is missing.');
+  if(!databaseUrl)throw new Error('DATABASE_URL is missing.');
 
+  // A local checkout may predate credential persistence. In that case create
+  // credentials once and persist them before seeding so every subsequent run
+  // authenticates against exactly the same passwords.
   const candidatePassword=envValue(envText,'PATIMA_SEED_CANDIDATE_PASSWORD')||process.env.PATIMA_SEED_CANDIDATE_PASSWORD||randomBytes(18).toString('base64url');
   const employerPassword=envValue(envText,'PATIMA_SEED_EMPLOYER_PASSWORD')||process.env.PATIMA_SEED_EMPLOYER_PASSWORD||randomBytes(18).toString('base64url');
   envText=upsertEnvLine(envText,'PATIMA_SEED_CANDIDATE_PASSWORD',candidatePassword);
   envText=upsertEnvLine(envText,'PATIMA_SEED_EMPLOYER_PASSWORD',employerPassword);
-  if(envText!==readFileSync(envPath,'utf8')) writeFileSync(envPath,envText,'utf8');
+  if(envText!==originalEnvText){writeFileSync(envPath,envText,'utf8');console.log('[PATIMA] Persisted local seeded authentication credentials in .env.local.');}
 
   const childEnv={...process.env,DATABASE_URL:databaseUrl,NODE_ENV:'development',PATIMA_SEED_CANDIDATE_PASSWORD:candidatePassword,PATIMA_SEED_EMPLOYER_PASSWORD:employerPassword};
   assertNodeDependencies();
@@ -79,18 +70,15 @@ try{
   try{containerId=commandOutput('docker',['ps','-a','--filter','name=^/patima-postgres$','--format','{{.ID}}']);}
   catch{throw new Error('Docker is installed but the Docker daemon is not reachable. Start Docker Desktop and retry.');}
 
-  if(!containerId) run('docker',['run','--name','patima-postgres','-e','POSTGRES_PASSWORD=postgres','-e','POSTGRES_DB=patima_dev','-p','5432:5432','-d','postgres:16']);
-  else{
-    const running=commandOutput('docker',['inspect','-f','{{.State.Running}}','patima-postgres']);
-    if(running!=='true') run('docker',['start','patima-postgres']);
-  }
+  if(!containerId)run('docker',['run','--name','patima-postgres','-e','POSTGRES_PASSWORD=postgres','-e','POSTGRES_DB=patima_dev','-p','5432:5432','-d','postgres:16']);
+  else{const running=commandOutput('docker',['inspect','-f','{{.State.Running}}','patima-postgres']);if(running!=='true')run('docker',['start','patima-postgres']);}
 
   let ready=false;
   for(let attempt=1;attempt<=30;attempt++){
     try{commandOutput('docker',['exec','patima-postgres','pg_isready','-U','postgres','-d','patima_dev']);ready=true;break;}
     catch{Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,1000);}
   }
-  if(!ready) throw new Error('PostgreSQL did not become ready within 30 seconds.');
+  if(!ready)throw new Error('PostgreSQL did not become ready within 30 seconds.');
 
   run(process.execPath,['scripts/migrate.mjs'],{env:childEnv});
   run(process.execPath,['scripts/seed-hiring.mjs'],{env:childEnv});
@@ -99,7 +87,4 @@ try{
 
   console.log('[PATIMA] Local database bootstrap complete. Restart `npm run dev` if it was already running.');
   console.log('[PATIMA] Signup should now use the PostgreSQL-backed server session flow.');
-}catch(error){
-  console.error(`[PATIMA] Local setup failed: ${error instanceof Error?error.message:String(error)}`);
-  process.exitCode=1;
-}
+}catch(error){console.error(`[PATIMA] Local setup failed: ${error instanceof Error?error.message:String(error)}`);process.exitCode=1;}
