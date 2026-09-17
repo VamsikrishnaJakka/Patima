@@ -13,9 +13,12 @@
     "test:cycle16": "node scripts/test-cycle16.mjs",
     "test:assessment": "node scripts/test-assessment.mjs",
     "test:local-auth": "node scripts/test-local-auth.mjs",
+    "test:rls-crosstalk": "tsx tests/rls_crosstalk_gate.ts",
+    "test:runtime": "tsx tests/sql_verification_runtime.test.ts",
     "setup:local": "node scripts/setup-local.mjs"
   },
   "dependencies": {
+    "@duckdb/node-api": "1.5.5-r.5",
     "@duckdb/duckdb-wasm": "^1.29.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.395.0",
@@ -30,10 +33,11 @@
     "@types/node": "^20.14.0",
     "@types/pg": "^8.11.6",
     "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@types/react-dom": "^18.3.3",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
+    "tsx": "^4.20.3",
     "typescript": "^5.4.5"
   }
 }
