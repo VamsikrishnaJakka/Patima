@@ -1,0 +1,36 @@
+export type Seniority='JUNIOR'|'MID'|'SENIOR';
+export type AssessmentProbe={number:number;title:string;problem:string;task:string;boundary:string;required:string[]};
+export type AssessmentDefinition={slug:string;title:string;capabilitySlug:string;capabilityName:string;description:string;probes:AssessmentProbe[]};
+
+const sql:AssessmentDefinition={
+ slug:'sql-window-functions',title:'SQL Window Functions',capabilitySlug:'sql.window_functions',capabilityName:'SQL Window Functions',
+ description:'Sessionize event streams, resolve timestamp ties deterministically, and reason about window-frame behavior.',
+ probes:[
+  {number:1,title:'Core Sessionization',problem:'Events for each user may arrive out of order. A new session begins after an inactivity gap greater than 30 minutes.',task:'Explain or write the window-function approach that compares each event with its previous event and produces a session identifier.',boundary:'Your formulation must make the partition and ordering explicit.',required:['lag','partition by','order by']},
+  {number:2,title:'Tie-Breaking & NULL Resilience',problem:'Two events can have exactly the same event_time, and the first row has no previous timestamp.',task:'Explain why ordering only by event_time is insufficient and give the deterministic ordering and NULL handling you would use.',boundary:'Use a stable unique event identifier as the tie-breaker and address LAG() returning NULL.',required:['event_id','lag','null']},
+  {number:3,title:'Frame Performance & Memory',problem:'The same query may run over a very large partition. Frame semantics can change both result behavior and execution memory requirements.',task:'Compare ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW with a default RANGE frame and explain what you would inspect when diagnosing spills.',boundary:'Mention peer rows/ties and memory or spill behavior rather than only syntax.',required:['rows','range','memory']},
+ ]
+};
+const python:AssessmentDefinition={slug:'python-concurrency',title:'Python Concurrency',capabilitySlug:'python.concurrency.rate_limiter',capabilityName:'Python Concurrency & Rate Limiting',description:'Reason about asynchronous coordination, atomicity, cancellation, and burst behavior.',probes:[
+ {number:1,title:'Core Coordination',problem:'Many asynchronous tasks share a rolling-window rate limiter.',task:'Explain how you coordinate concurrent tasks and maintain the request window without races.',boundary:'Identify where synchronization belongs.',required:['async','lock']},
+ {number:2,title:'Cancellation & Fairness',problem:'A waiting task can be cancelled while other tasks are contending for the limiter.',task:'Explain cleanup and cancellation handling so permits or waiters are not leaked.',boundary:'Address cancellation and contention explicitly.',required:['cancel','lock']},
+ {number:3,title:'Burst & Time Semantics',problem:'A burst of requests arrives at the boundary of the rolling window.',task:'Explain how you measure time and prevent a burst from bypassing the configured limit.',boundary:'Mention monotonic time and the rolling window or equivalent.',required:['monotonic','window']},
+]};
+const java:AssessmentDefinition={slug:'java.concurrency_memory',title:'Java Concurrency & Memory Model',capabilitySlug:'java.concurrency_memory',capabilityName:'Java Concurrency & Memory Model',description:'Reason about visibility, atomicity, synchronization, and deadlock isolation.',probes:[
+ {number:1,title:'Visibility & Atomicity',problem:'Several threads update shared state while another thread reads it.',task:'Choose between synchronized, explicit locks, atomics, and volatile based on the guarantee required.',boundary:'Distinguish visibility from atomicity.',required:['volatile','atomic']},
+ {number:2,title:'Compound Operations',problem:'A shared counter is incremented by many threads.',task:'Explain why a volatile integer is insufficient for increment and give a safe alternative.',boundary:'Address atomicity.',required:['volatile','increment','atomic']},
+ {number:3,title:'Deadlock Boundaries',problem:'Two services acquire multiple locks in different orders.',task:'Explain a deterministic strategy for preventing or diagnosing lock-order deadlocks.',boundary:'Mention lock ordering or timeout diagnostics.',required:['deadlock','lock','order']},
+]};
+const linux:AssessmentDefinition={slug:'linux.process_signals',title:'Linux Systems & Signals',capabilitySlug:'linux.process_signals',capabilityName:'Linux Systems & Signals',description:'Investigate process trees, file descriptors, signals, and shutdown failures.',probes:[
+ {number:1,title:'Process Lifecycle',problem:'A service leaves workers alive after shutdown.',task:'Explain how you would inspect the process tree and parent/child relationships.',boundary:'Mention process identifiers and parent relationships.',required:['process','pid','parent']},
+ {number:2,title:'Signals & Shutdown',problem:'SIGTERM is sent but a worker remains alive.',task:'Explain the distinction between SIGTERM and SIGKILL and how you would investigate signal handling.',boundary:'Address signal handling or masking.',required:['sigterm','sigkill','signal']},
+ {number:3,title:'File Descriptor Inheritance',problem:'A pipe never reaches EOF because a worker keeps an inherited descriptor open.',task:'Explain how you would inspect and isolate open file descriptors.',boundary:'Mention file descriptors and inheritance.',required:['file descriptor','inherit']},
+]};
+const docker:AssessmentDefinition={slug:'docker.container_internals',title:'Docker & Container Mechanics',capabilitySlug:'docker.container_internals',capabilityName:'Docker & Container Mechanics',description:'Reason about cgroups, namespaces, image layers, and resource failures.',probes:[
+ {number:1,title:'Resource Limits',problem:'A container is repeatedly killed in a constrained environment.',task:'Explain how you would distinguish memory pressure from another failure using cgroup/resource observations.',boundary:'Address memory limits or OOM behavior.',required:['cgroup','memory','oom']},
+ {number:2,title:'Isolation',problem:'A process behaves differently inside a container.',task:'Explain how namespaces isolate processes, networking, or mounts and how you would investigate safely.',boundary:'Mention namespace isolation.',required:['namespace','isolation']},
+ {number:3,title:'Image Layers',problem:'A service image has unexpectedly large layers and poor cache reuse.',task:'Explain how multi-stage builds and layer ordering affect image size and cache behavior.',boundary:'Mention layers and cache.',required:['layer','cache','multi-stage']},
+]};
+
+export const ASSESSMENT_CATALOG:AssessmentDefinition[]=[sql,python,java,linux,docker];
+export const getAssessment=(slug:string)=>ASSESSMENT_CATALOG.find(a=>a.slug===slug)||null;
