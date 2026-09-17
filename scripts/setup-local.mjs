@@ -6,7 +6,6 @@ import process from 'node:process';
 const root=process.cwd();
 const envPath=path.join(root,'.env.local');
 const localDatabaseUrl='postgresql://postgres:postgres@localhost:5432/patima_dev';
-const npmCommand=process.platform==='win32'?'npm.cmd':'npm';
 
 function run(command,args,options={}){
   console.log(`[PATIMA] ${command} ${args.join(' ')}`);
@@ -42,7 +41,7 @@ function assertNodeDependencies(){
   const requiredPackages=['pg','next','react','react-dom'];
   const missing=requiredPackages.filter((name)=>!existsSync(path.join(root,'node_modules',name,'package.json')));
   if(missing.length){
-    throw new Error(`Required npm dependencies are missing: ${missing.join(', ')}. Run \'npm install\' once in the repository, then retry \'npm run setup:local\'.`);
+    throw new Error(`Required npm dependencies are missing: ${missing.join(', ')}. Run 'npm install' once in the repository, then retry 'npm run setup:local'.`);
   }
 }
 
@@ -54,11 +53,10 @@ try{
 
   const envText=readFileSync(envPath,'utf8');
   const databaseMatch=envText.match(/^\s*DATABASE_URL\s*=\s*["']?([^"'\r\n]+)["']?\s*$/m);
-  if(!process.env.DATABASE_URL) process.env.DATABASE_URL=(databaseMatch?.[1]||localDatabaseUrl).trim();
-  if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is missing.');
+  const databaseUrl=(process.env.DATABASE_URL||(databaseMatch?.[1]||localDatabaseUrl)).trim();
+  if(!databaseUrl) throw new Error('DATABASE_URL is missing.');
 
-  if(!process.env.NODE_ENV) process.env.NODE_ENV='development';
-
+  const childEnv={...process.env,DATABASE_URL:databaseUrl,NODE_ENV:'development'};
   assertNodeDependencies();
   assertDockerDaemon();
 
@@ -88,9 +86,9 @@ try{
   }
   if(!ready) throw new Error('PostgreSQL did not become ready within 30 seconds.');
 
-  run(npmCommand,['run','db:migrate']);
-  run(npmCommand,['run','db:seed:hiring']);
-  run(npmCommand,['run','test:cycle16']);
+  run(process.execPath,['scripts/migrate.mjs'],{env:childEnv});
+  run(process.execPath,['scripts/seed-hiring.mjs'],{env:childEnv});
+  run(process.execPath,['scripts/test-cycle16.mjs'],{env:childEnv});
 
   console.log('[PATIMA] Local database bootstrap complete. Restart `npm run dev` if it was already running.');
   console.log('[PATIMA] Signup should now use the PostgreSQL-backed server session flow.');
