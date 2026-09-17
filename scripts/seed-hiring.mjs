@@ -2,8 +2,9 @@ import {randomBytes,scryptSync} from 'node:crypto';
 import process from 'node:process';
 import pg from 'pg';
 const {Pool}=pg;
-if(!process.env.DATABASE_URL){console.error('[PATIMA] DATABASE_URL is required for seeding.');process.exit(1);}
-const pool=new Pool({connectionString:process.env.DATABASE_URL,max:1});
+const databaseUrl=process.env.DIRECT_URL||process.env.DATABASE_URL;
+if(!databaseUrl){console.error('[PATIMA] DIRECT_URL or DATABASE_URL is required for seeding.');process.exit(1);}
+const pool=new Pool({connectionString:databaseUrl,max:1});
 const hashPassword=(password)=>{const salt=randomBytes(16).toString('hex');return `scrypt$${salt}$${scryptSync(password,salt,64).toString('hex')}`;};
 const candidateId='c9a01f42-8812-4211-b0e1-482910482910', employerUserId='b0000000-0000-0000-0000-000000000002', employerId='e0000000-0000-0000-0000-000000000001';
 const candidatePassword=process.env.PATIMA_SEED_CANDIDATE_PASSWORD||randomBytes(18).toString('base64url');
