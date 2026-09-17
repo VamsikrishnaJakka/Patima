@@ -1,4 +1,4 @@
-import {Pool, PoolClient} from 'pg';
+import {Pool, PoolClient, QueryResultRow} from 'pg';
 
 const connectionString = process.env.DATABASE_URL || (process.env.NODE_ENV !== 'production' ? 'postgresql://postgres:postgres@localhost:5432/patima_dev' : undefined);
 export const pool = new Pool({
@@ -9,7 +9,7 @@ export const pool = new Pool({
   maxUses: 0,
 });
 
-export async function query<T = any>(text: string, params: any[] = []) {
+export async function query<T extends QueryResultRow = QueryResultRow>(text: string, params: any[] = []) {
   return pool.query<T>(text, params);
 }
 
