@@ -1,0 +1,1 @@
+export function StatusPill({value}:{value:string}){const tone=value==='DEMONSTRATED'?'pill-good':value==='DEVELOPING'?'pill-warn':value==='PROVISIONAL'?'pill-info':'pill-neutral';return <span className={`pill ${tone}`}>{value}</span>}

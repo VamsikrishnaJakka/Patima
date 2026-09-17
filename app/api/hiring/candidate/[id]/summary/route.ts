@@ -1,0 +1,1 @@
+import {NextResponse} from 'next/server'; import {candidateById} from '@/lib/hiring-data'; export async function GET(_:Request,{params}:{params:{id:string}}){const c=candidateById(params.id);return c?NextResponse.json({candidate_id:c.id,masked_handle:c.handle,visibility:c.visibility,capabilities:c.capabilities}):NextResponse.json({error:'Not found'},{status:404})}
