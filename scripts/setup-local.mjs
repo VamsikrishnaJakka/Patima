@@ -20,8 +20,25 @@ function run(command,args,options={}){
 }
 
 function commandOutput(command,args){return execFileSync(command,args,{encoding:'utf8',cwd:root}).trim();}
-function envValue(text,name){const pattern=new RegExp(`^\\s*${name}\\s*=\\s*["']?([^"'\\r\\n]+)["']?\\s*$`,'m');return text.match(pattern)?.[1]?.trim()||'';}
-function upsertEnvLine(text,name,value){const line=`${name}=${value}`;const pattern=new RegExp(`^\\s*${name}\\s*=.*$`,'m');if(pattern.test(text))return text.replace(pattern,line);return `${text.trimEnd()}\\n${line}\\n`;}
+function envValue(text,name){
+  for(const rawLine of text.split(/\r?\n/)){
+    const line=rawLine.trim();
+    const separator=line.indexOf('=');
+    if(separator<0||line.slice(0,separator).trim()!==name)continue;
+    let value=line.slice(separator+1).trim();
+    if(value.length>=2&&((value.startsWith('"')&&value.endsWith('"'))||(value.startsWith("'")&&value.endsWith("'"))))value=value.slice(1,-1);
+    return value;
+  }
+  return '';
+}
+function upsertEnvLine(text,name,value){
+  const line=`${name}=${value}`;
+  const lines=text.split(/\r?\n/);
+  const index=lines.findIndex(rawLine=>{const trimmed=rawLine.trim();const separator=trimmed.indexOf('=');return separator>=0&&trimmed.slice(0,separator).trim()===name;});
+  if(index>=0){lines[index]=line;return lines.join('\n');}
+  const base=text.replace(/[\r\n]+$/,'');
+  return `${base}${base?'\n':''}${line}\n`;
+}
 
 function assertDockerDaemon(){
   try{
@@ -49,17 +66,14 @@ try{
 
   const originalEnvText=readFileSync(envPath,'utf8');
   let envText=originalEnvText;
-  const databaseMatch=envText.match(/^\s*DATABASE_URL\s*=\s*["']?([^"'\r\n]+)["']?\s*$/m);
-  const databaseUrl=(process.env.DATABASE_URL||(databaseMatch?.[1]||localDatabaseUrl)).trim();
+  const databaseUrl=(process.env.DATABASE_URL||envValue(envText,'DATABASE_URL')||localDatabaseUrl).trim();
   if(!databaseUrl)throw new Error('DATABASE_URL is missing.');
 
-  // A local checkout may predate credential persistence. In that case create
-  // credentials once and persist them before seeding so every subsequent run
-  // authenticates against exactly the same passwords.
   const candidatePassword=envValue(envText,'PATIMA_SEED_CANDIDATE_PASSWORD')||process.env.PATIMA_SEED_CANDIDATE_PASSWORD||randomBytes(18).toString('base64url');
   const employerPassword=envValue(envText,'PATIMA_SEED_EMPLOYER_PASSWORD')||process.env.PATIMA_SEED_EMPLOYER_PASSWORD||randomBytes(18).toString('base64url');
   envText=upsertEnvLine(envText,'PATIMA_SEED_CANDIDATE_PASSWORD',candidatePassword);
   envText=upsertEnvLine(envText,'PATIMA_SEED_EMPLOYER_PASSWORD',employerPassword);
+  if(!envValue(envText,'DATABASE_URL'))envText=upsertEnvLine(envText,'DATABASE_URL',databaseUrl);
   if(envText!==originalEnvText){writeFileSync(envPath,envText,'utf8');console.log('[PATIMA] Persisted local seeded authentication credentials in .env.local.');}
 
   const childEnv={...process.env,DATABASE_URL:databaseUrl,NODE_ENV:'development',PATIMA_SEED_CANDIDATE_PASSWORD:candidatePassword,PATIMA_SEED_EMPLOYER_PASSWORD:employerPassword};
