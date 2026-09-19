@@ -144,7 +144,7 @@ export async function allocateNextQuestion(
       req.verificationReport?.publicTestsPassed || 0, req.verificationReport?.publicTestsTotal || 0,
       req.verificationReport?.hiddenTestsPassed || 0, req.verificationReport?.hiddenTestsTotal || 0,
       req.verificationReport?.executionTimeMs ?? null, req.verificationReport?.peakMemoryKb ?? null,
-      req.verificationReport?.verdict === 'ACCEPTED' ? 'PASSED' : (req.verificationReport?.verdict || 'NOT_RUN'),
+      req.verificationReport?.verdict === 'ACCEPTED' ? 'PASSED' : req.verificationReport ? 'FAILED' : 'NOT_RUN',
       JSON.stringify(req.verificationReport || {}),
       req.verificationReport?.executionDigest || null,
       session.id, session.current_step
