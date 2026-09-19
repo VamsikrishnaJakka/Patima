@@ -30,7 +30,7 @@ async function main(){
    try{
      const passed=await run();
      if(passed)console.log(`PASS ${name}`);
-     else{console.error(`FAIL ${name}`);failed++;}
+     else{console.error(`FAIL ${name}`); if(name==='canonical valid solution'){const r=await verifyCandidateSqlIsolated(validSql);console.error(JSON.stringify({error:r.error,ast:r.astValidation,assertions:r.assertions},null,2));} failed++;}
    }catch(error){
      console.error(`FAIL ${name}: ${error instanceof Error?error.message:String(error)}`);
      failed++;
