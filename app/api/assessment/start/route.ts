@@ -8,6 +8,8 @@ type ExperienceLevel=typeof levels[number];
 
 const roleForDomain=(domain:string)=>domain==='sql-window-functions'?'Data Engineer':domain==='python-concurrency'||domain==='java.concurrency_memory'?'Backend Engineer':'Platform / DevOps Engineer';
 const seniorityForLevel=(level:ExperienceLevel)=>level==='BEGINNER'?'JUNIOR':level==='INTERMEDIATE'?'MID':'SENIOR';
+const questionChoices=[5,10,15,20];
+const durationFor=(level:ExperienceLevel,count:number)=>Math.ceil((count*(level==='BEGINNER'?90:level==='INTERMEDIATE'?100:120))/60);
 
 export async function POST(request:Request){
  try{
@@ -15,7 +17,9 @@ export async function POST(request:Request){
   const body=await request.json();
   const domain=typeof body.domain==='string'?body.domain:'';
   const experienceLevel=String(body.experienceLevel||'').toUpperCase() as ExperienceLevel;
+  const questionCount=Number(body.questionCount)||0;
   if(!levels.includes(experienceLevel))return NextResponse.json({error:'Invalid experience level'},{status:400});
+  if(!questionChoices.includes(questionCount))return NextResponse.json({error:'Choose 5, 10, 15, or 20 questions'},{status:400});
   const assessment=getAssessment(domain);
   if(!assessment)return NextResponse.json({error:'Assessment domain is unavailable'},{status:400});
 
@@ -33,17 +37,17 @@ export async function POST(request:Request){
 
    const inserted=await client.query(
     `INSERT INTO assessment_sessions
-      (user_id,target_role,seniority,domain_slug,capability_node_id,domain,experience_level,current_step,status,started_at,expires_at,last_activity_at)
-     VALUES($1,$2,$3,$4,$5,$6,$7,1,'IN_PROGRESS',clock_timestamp(),clock_timestamp()+($8 * interval '1 minute'),clock_timestamp())
+      (user_id,target_role,seniority,domain_slug,capability_node_id,domain,experience_level,current_step,status,started_at,expires_at,last_activity_at,selected_question_count,selected_duration_minutes)
+     VALUES($1,$2,$3,$4,$5,$6,$7,1,'IN_PROGRESS',clock_timestamp(),clock_timestamp()+($9 * interval '1 minute'),clock_timestamp(),$8,$9)
      RETURNING id`,
-    [session.userId,roleForDomain(domain),seniorityForLevel(experienceLevel),assessment.slug,node.rows[0].id,domain,experienceLevel,config.rows[0].duration_minutes]
+    [session.userId,roleForDomain(domain),seniorityForLevel(experienceLevel),assessment.slug,node.rows[0].id,domain,experienceLevel,questionCount,durationFor(experienceLevel,questionCount)]
    );
    const question=await allocateNextQuestion(client,{sessionId:inserted.rows[0].id,userId:session.userId});
    if(!question)throw new Error('QUESTION_ALLOCATION_FAILED');
    return {
     sessionId:inserted.rows[0].id,
     assessment:{slug:assessment.slug,title:assessment.title,capabilityName:assessment.capabilityName},
-    config:config.rows[0],
+    config:{...config.rows[0],total_questions:questionCount,duration_minutes:durationFor(experienceLevel,questionCount)},
     question
    };
   });
