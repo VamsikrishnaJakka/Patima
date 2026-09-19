@@ -17,6 +17,7 @@ export interface AllocatedQuestion {
   promptMarkdown: string;
   scenarioEntity: string;
   fixtureDdl: string;
+  fixturePreview?: {columns:string[];rows:(string|number|null)[][]};
   totalQuestions: number;
   remainingTimeSeconds: number;
 }
@@ -55,7 +56,7 @@ export async function allocateNextQuestion(
 
   // 2. Refresh / Resume Check: If an active reservation exists and no submission was sent, re-serve Question
   const activeRes = await client.query(`
-    SELECT v.id, v.difficulty_score, v.prompt_markdown, v.scenario_entity, v.fixture_ddl
+    SELECT v.id, v.difficulty_score, v.prompt_markdown, v.scenario_entity, v.fixture_ddl, v.fixture_preview
     FROM active_question_reservations r
     JOIN question_variants v ON v.id = r.variant_id
     WHERE r.session_id = $1 AND r.expires_at > clock_timestamp();
@@ -70,6 +71,7 @@ export async function allocateNextQuestion(
       promptMarkdown: active.prompt_markdown,
       scenarioEntity: active.scenario_entity,
       fixtureDdl: active.fixture_ddl,
+      fixturePreview: active.fixture_preview,
       totalQuestions: session.total_questions,
       remainingTimeSeconds: session.remaining_seconds,
     };
@@ -148,7 +150,7 @@ export async function allocateNextQuestion(
   // 4. Atomic Selection of Next Question Variant
   const variantRes = await client.query(`
     SELECT v.id, v.family_id, v.difficulty_score, v.prompt_markdown, 
-           v.scenario_entity, v.fixture_ddl
+           v.scenario_entity, v.fixture_ddl, v.fixture_preview
     FROM question_variants v
     JOIN question_families f ON f.id = v.family_id
     WHERE f.domain = $1
@@ -217,6 +219,7 @@ export async function allocateNextQuestion(
     promptMarkdown: selected.prompt_markdown,
     scenarioEntity: selected.scenario_entity,
     fixtureDdl: selected.fixture_ddl,
+    fixturePreview: selected.fixture_preview,
     totalQuestions: session.total_questions,
     remainingTimeSeconds: session.remaining_seconds,
   };
