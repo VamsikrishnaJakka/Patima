@@ -3,7 +3,7 @@ export type AssessmentProbe={number:number;title:string;problem:string;task:stri
 export type AssessmentDefinition={slug:string;title:string;capabilitySlug:string;capabilityName:string;description:string;probes:AssessmentProbe[]};
 
 const sql:AssessmentDefinition={
- slug:'sql-window-functions',title:'SQL Window Functions',capabilitySlug:'sql.window_functions',capabilityName:'SQL Window Functions',
+ slug:'sql-window-functions',title:'SQL',capabilitySlug:'sql.window_functions',capabilityName:'SQL',
  description:'Sessionize event streams, resolve timestamp ties deterministically, and reason about window-frame behavior.',
  probes:[
   {number:1,title:'Core Sessionization',problem:'Events for each user may arrive out of order. A new session begins after an inactivity gap greater than 30 minutes.',task:'Explain or write the window-function approach that compares each event with its previous event and produces a session identifier.',boundary:'Your formulation must make the partition and ordering explicit.',required:['lag','partition by','order by'],verification:[['lag\\s*\\(','previous\\s+(row|event)','previous timestamp'],['partition\\s+by','partitioned by'],['order\\s+by','ordered by'],['30\\s*(minutes?|mins?)','inactivity\\s+gap'],['sum\\s*\\(','cumulative','running total','session[_ -]?id']]},
