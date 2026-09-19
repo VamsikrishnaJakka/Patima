@@ -9,6 +9,7 @@ export interface NextQuestionRequest {
   isCorrect?: boolean;
   expectedVariantId?: string;
   verificationReport?: {verdict:string;publicTestsPassed:number;publicTestsTotal:number;hiddenTestsPassed:number;hiddenTestsTotal:number;executionTimeMs:number;peakMemoryKb:number|null;executionDigest:string;testCases?:unknown[]};
+}
 
 export interface AllocatedQuestion {
   variantId: string;
