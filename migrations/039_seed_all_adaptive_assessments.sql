@@ -32,7 +32,8 @@ DO $$
 DECLARE
   d RECORD;
   lvl RECORD;
-  f RECORD;
+  fam RECORD;
+  qfam RECORD;
   v INT;
   base_diff NUMERIC;
   domain_label TEXT;
@@ -56,9 +57,9 @@ BEGIN
         ('ADVANCED',8.5)
       ) AS x(experience_level,starting_difficulty)
     LOOP
-      FOR f IN SELECT generate_series(1,20) AS n
+      FOR fam IN SELECT generate_series(1,20) AS n
       LOOP
-        v_family_code := upper(regexp_replace(d.label,'[^A-Za-z0-9]','','g')) || '_' || lvl.experience_level || '_F' || lpad(f.n::text,2,'0');
+        v_family_code := upper(regexp_replace(d.label,'[^A-Za-z0-9]','','g')) || '_' || lvl.experience_level || '_F' || lpad(fam.n::text,2,'0');
         concept := CASE f.n
           WHEN 1 THEN 'core concepts'
           WHEN 2 THEN 'joins and relationships'
@@ -98,7 +99,7 @@ BEGIN
             ELSE 7.3 + ((f.n-1) % 11) * 0.25
           END + CASE v WHEN 1 THEN 0 WHEN 2 THEN 0.1 ELSE 0.2 END;
 
-          SELECT q.id INTO STRICT f FROM question_families q WHERE q.family_code=v_family_code;
+          SELECT q.id INTO STRICT qfam FROM question_families q WHERE q.family_code=v_family_code;
 
           fingerprint := repeat(md5(v_family_code || ':' || v::text),2);
 
@@ -107,7 +108,7 @@ BEGIN
             expected_time_seconds,prompt_markdown,scenario_entity,fixture_ddl,hidden_assertions
           )
           VALUES(
-            f.id,
+            qfam.id,
             'VAR_' || chr(64+v),
             fingerprint,
             round(base_diff,1),
