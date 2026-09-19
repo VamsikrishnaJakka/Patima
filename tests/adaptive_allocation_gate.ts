@@ -145,29 +145,39 @@ async function gateCeiling(client:any,userId:string){
 }
 
 async function gateFloor(client:any,userId:string){
-  console.log('[GATE 5] Floor clamp >= 4.1...');
+  console.log('[GATE 5] Failed verification cannot mutate adaptive state...');
   const sessionId=await initSession(client,userId);
-  let question=await allocateNextQuestion(client,{sessionId,userId});
+  const question=await allocateNextQuestion(client,{sessionId,userId});
   assert.ok(question);
-  for(let i=0;i<8&&question;i++){
-    question=await withTransaction(client,()=>allocateNextQuestion(client,{
-      sessionId,userId,submittedCode:`FLOOR-${i}`,isCorrect:false,durationSeconds:300,
+  let blocked=false;
+  try{
+    await withTransaction(client,()=>allocateNextQuestion(client,{
+      sessionId,userId,submittedCode:'FLOOR-FAILED',isCorrect:true,durationSeconds:300,
       expectedVariantId:question!.variantId,
       verificationReport:{
-        ...acceptedReport(`gate-floor-${i}`),
+        ...acceptedReport('gate-floor-failed'),
         verdict:'WRONG_ANSWER',
         publicTestsPassed:0,
         hiddenTestsPassed:0
       }
     }));
+  }catch(error:any){
+    blocked=error?.message==='VERIFICATION_FAILED_NO_ADVANCE';
   }
-  const result=await client.query(`
-    SELECT MIN(difficulty_presented) AS min_presented,MIN(computed_theta_next) AS min_theta
-    FROM assessment_adaptive_logs WHERE session_id=$1
+  assert.equal(blocked,true,'Failed verification was allowed to advance adaptive state.');
+  const state=await client.query(`
+    SELECT current_step,status FROM assessment_sessions WHERE id=$1
   `,[sessionId]);
-  assert.ok(Number(result.rows[0].min_presented)>=4.1);
-  assert.ok(Number(result.rows[0].min_theta)>=4.1);
-  console.log('PASS: floor bounded at 4.1.');
+  const log=await client.query(`
+    SELECT candidate_response,is_correct,verification_status
+    FROM assessment_adaptive_logs
+    WHERE session_id=$1 AND step_index=1
+  `,[sessionId]);
+  assert.equal(Number(state.rows[0].current_step),1);
+  assert.equal(state.rows[0].status,'IN_PROGRESS');
+  assert.equal(log.rows.length,1);
+  assert.equal(log.rows[0].candidate_response,null);
+  console.log('PASS: failed verification left adaptive state untouched.');
 }
 
 async function gateServerAuthority(client:any,userId:string){
@@ -279,7 +289,7 @@ async function run(){
     await gateExpiry(clientA,userB);
     await gateAcceptedTelemetry(clientA,userA);
     console.log('');
-    console.log('ALL 9 ADAPTIVE STATE-MACHINE GATES PASSED.');
+    console.log('ALL 9 ADAPTIVE STATE-MACHINE AND VERIFICATION-BOUNDARY GATES PASSED.');
   }finally{
     try{await cleanup(clientA);}finally{
       clientA.release();
