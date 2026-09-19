@@ -113,7 +113,7 @@ async function run(){
     assert.equal(wrong.allPassed,false);
     console.log(`PASS: wrong solution returned ${wrong.verdict}.`);
 
-    console.log('[SECURITY 4] Authentic candidate solution produces server verification evidence...');
+    console.log('[SECURITY 4] Authored suite is executable and server-verifiable...');
     const accepted=await dispatchAuthenticVerification({
       domain:'sql-window-functions',
       candidateCode:canonical,
@@ -123,7 +123,8 @@ async function run(){
     assert.equal(accepted.allPassed,true);
     assert.ok(accepted.executionDigest);
     assert.equal(accepted.peakMemoryKb,null);
-    console.log('PASS: accepted result is produced by the server harness.');
+    assert.ok(accepted.publicTestsTotal>0);
+    console.log('PASS: authored candidate passed public and hidden execution.');
 
     console.log('[SECURITY 5] Verification evidence is bound to candidate code...');
     const mutated=await dispatchAuthenticVerification({
