@@ -27,7 +27,7 @@ function validateExecutionSql(sql:string){
  for(const functionName of normalized.matchAll(/\b([a-z_][a-z0-9_]*)\s*\(/gi)){
   const name=functionName[1].toLowerCase();
   const prefix=normalized.slice(0,functionName.index??0);
-  if(/\bas\s*$/i.test(prefix))continue;
+  if(/\b(?:as|select)\s*$/i.test(prefix))continue;
   if(['over','partition','order','between','rows','range','case','when','then','else','end','cast','filter'].includes(name))continue;
   if(!allowedFunctions.has(name))throw new Error(`Function ${name} is not permitted in the assessment sandbox.`);
  }
