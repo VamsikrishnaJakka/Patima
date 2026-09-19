@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import {consultEvidenceCoach} from '../lib/agents/evidence-coach';
 
 async function main(){
@@ -13,7 +13,7 @@ async function main(){
   status:'DEVELOPING',domain:'sql.window_functions',astViolations:['missing event_id tie breaker'],failedAssertions:['Timestamp tie retains both events'],candidateReasoning:'I ordered only by event_time.',executionDurationMs:20,
  });
  assert.equal(developing.provider,'fallback');
- assert.match(developing.gapAnalysis||'','event_id');
+ assert.match(developing.gapAnalysis || '', /event_id/);
  assert.equal(developing.proveItChallenge,null);
 
  const bounded=await consultEvidenceCoach({
@@ -25,3 +25,5 @@ async function main(){
 }
 
 main().catch(error=>{console.error(error);process.exit(1);});
+
+

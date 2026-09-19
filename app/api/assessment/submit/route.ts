@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+﻿import crypto from 'node:crypto';
 import {NextResponse} from 'next/server';
 import {getAssessment} from '@/lib/assessment-catalog';
 import {consultEvidenceCoach} from '@/lib/agents/evidence-coach';
@@ -35,7 +35,7 @@ export async function POST(request:Request){
 
   const textual=verifyAssessment(sessionContext.assessment,normalizedAnswers);
   let outcome=textual.outcome;
-  let astAnalysis:null|ReturnType<typeof verifyCandidateSqlIsolated>['astValidation']=null;
+  let astAnalysis:null|Awaited<ReturnType<typeof verifyCandidateSqlIsolated>>['astValidation']=null;
   let executionResults:Awaited<ReturnType<typeof verifyCandidateSqlIsolated>>|null=null;
   const candidateSql=sessionContext.assessment.slug==='sql-window-functions'?normalizedAnswers.map((a:SubmittedAnswer)=>a.answer).find((a:string)=>/\b(?:select|with)\b/i.test(a)&&/\buser_events\b/i.test(a))||'':'';
 
@@ -88,3 +88,5 @@ export async function POST(request:Request){
   return NextResponse.json({error:status===401?'Unauthorized':status===404?'Assessment session not found, expired, or already submitted':status===400?'Exactly one response for each of the three probes is required':'Unable to verify assessment'},{status});
  }
 }
+
+
