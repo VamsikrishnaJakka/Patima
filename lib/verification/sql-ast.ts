@@ -1,12 +1,17 @@
 import {astVisitor,parse,parseFirst} from 'pgsql-ast-parser';
 
-export const ALLOWED_SQL_TABLES=new Set(['user_events','test_events']);
+export interface SqlAstVerificationOptions {
+  allowedTables?: string[];
+  requireWindowFunction?: boolean;
+  requiredPartitionColumns?: string[];
+  requiredOrderColumns?: string[];
+}
 
 export interface SqlAstVerificationResult{
  valid:boolean;
  statementType:string;
  hasWindowFunction:boolean;
- hasPartitionByUserId:boolean;
+ hasPartitionByRequiredColumns:boolean;
  hasDeterministicTieBreaker:boolean;
  windowFrameType:'RANGE'|'ROWS'|'DEFAULT';
  referencedTables:string[];
@@ -21,21 +26,22 @@ const expressionName=(node:any)=>{
  return '';
 };
 
-export function inspectSqlAst(sqlCode:string):SqlAstVerificationResult{
+export function inspectSqlAst(sqlCode:string,options:SqlAstVerificationOptions={}):SqlAstVerificationResult{
  const violations:string[]=[];
  let hasWindowFunction=false;
- let hasPartitionByUserId=false;
- let hasDeterministicTieBreaker=false;
+ let hasPartitionByRequiredColumns=true;
+ let hasDeterministicTieBreaker=true;
  let windowFrameType:'RANGE'|'ROWS'|'DEFAULT'='DEFAULT';
  const windows:Array<Record<string,unknown>>=[];
  const referencedTables=new Set<string>();
+ const requiredPartitionColumns=(options.requiredPartitionColumns||[]).map(x=>x.toLowerCase());
+ const requiredOrderColumns=(options.requiredOrderColumns||[]).map(x=>x.toLowerCase());
  try{
   const statements=parse(sqlCode);
   if(statements.length!==1)throw new Error('Exactly one SQL statement is required.');
   const ast:any=parseFirst(sqlCode);
   const statementType=String(ast?.type||'unknown');
   if(statementType!=='select'&&statementType!=='with'&&statementType!=='with recursive')violations.push('Submitted code must resolve to a SELECT or WITH ... SELECT statement.');
-
   const visitor=astVisitor((map:any)=>({
    tableRef:(table:any)=>{const name=String(table?.name||'').toLowerCase();if(name)referencedTables.add(name);return map.super().tableRef(table);},
    call:(node:any)=>{
@@ -44,36 +50,34 @@ export function inspectSqlAst(sqlCode:string):SqlAstVerificationResult{
      const over=node.over;
      const partitionNames=(over.partitionBy||[]).map((x:any)=>expressionName(x));
      const orderNames=(over.orderBy||[]).map((x:any)=>expressionName(x.by));
-     if(partitionNames.includes('user_id'))hasPartitionByUserId=true;
-     if(orderNames.includes('event_time')&&orderNames.includes('event_id'))hasDeterministicTieBreaker=true;
+     if(requiredPartitionColumns.length&&!requiredPartitionColumns.every(x=>partitionNames.includes(x)))hasPartitionByRequiredColumns=false;
+     if(requiredOrderColumns.length&&!requiredOrderColumns.every(x=>orderNames.includes(x)))hasDeterministicTieBreaker=false;
      windows.push({function:expressionName(node),partitionBy:partitionNames,orderBy:orderNames});
     }
     return map.super().call(node);
    },
   }));
   visitor.statement(ast);
-
   const cteNames=new Set<string>();
   const collectCtes=(node:any)=>{
    if(!node||typeof node!=='object')return;
    if(Array.isArray(node)){node.forEach(collectCtes);return;}
-   if(node.type==='with'){
-    for(const item of node.bindings||node.ctes||[])if(item?.alias)cteNames.add(String(item.alias).toLowerCase());
-   }
+   if(node.type==='with')for(const item of node.bindings||node.ctes||[])if(item?.alias)cteNames.add(String(item.alias).toLowerCase());
    for(const value of Object.values(node))if(value&&typeof value==='object')collectCtes(value);
   };
   collectCtes(ast);
-  const unauthorized=[...referencedTables].filter(name=>!ALLOWED_SQL_TABLES.has(name)&&!cteNames.has(name));
+  const allowed=new Set((options.allowedTables||[]).map(x=>x.toLowerCase()));
+  const unauthorized=[...referencedTables].filter(name=>!allowed.has(name)&&!cteNames.has(name));
   if(unauthorized.length)violations.push(`AST table allowlist violation: unauthorized table reference(s): ${unauthorized.join(', ')}.`);
-  if(!hasWindowFunction)violations.push('AST Error: No window function (OVER clause) found in submission.');
-  if(!hasPartitionByUserId)violations.push('AST Error: Window definition missing PARTITION BY user_id.');
-  if(!hasDeterministicTieBreaker)violations.push('AST Violation: Window ordering must include event_time and stable event_id tie-breaker.');
+  if(options.requireWindowFunction!==false&&!hasWindowFunction)violations.push('AST Error: No window function (OVER clause) found in submission.');
+  if(requiredPartitionColumns.length&&!hasPartitionByRequiredColumns)violations.push(`AST Error: Window definition missing required PARTITION BY column(s): ${requiredPartitionColumns.join(', ')}.`);
+  if(requiredOrderColumns.length&&!hasDeterministicTieBreaker)violations.push(`AST Violation: Window ordering must include required column(s): ${requiredOrderColumns.join(', ')}.`);
   const hasExplicitRows=/\bROWS\s+BETWEEN\b/i.test(sqlCode);
   const hasExplicitRange=/\bRANGE\s+BETWEEN\b/i.test(sqlCode);
   if(hasExplicitRows)windowFrameType='ROWS';else if(hasExplicitRange)windowFrameType='RANGE';
   const normalized=JSON.stringify({statementType,windows,referencedTables:[...referencedTables].sort()});
-  return {valid:violations.length===0,statementType,hasWindowFunction,hasPartitionByUserId,hasDeterministicTieBreaker,windowFrameType,referencedTables:[...referencedTables].sort(),astFingerprint:{statementType,windows,windowCount:windows.length,referencedTables:[...referencedTables].sort(),normalized},detectedViolations:violations};
+  return {valid:violations.length===0,statementType,hasWindowFunction,hasPartitionByRequiredColumns,hasDeterministicTieBreaker,windowFrameType,referencedTables:[...referencedTables].sort(),astFingerprint:{statementType,windows,windowCount:windows.length,referencedTables:[...referencedTables].sort(),normalized},detectedViolations:violations};
  }catch(error){
-  return {valid:false,statementType:'unknown',hasWindowFunction:false,hasPartitionByUserId:false,hasDeterministicTieBreaker:false,windowFrameType:'DEFAULT',referencedTables:[],astFingerprint:{parseError:error instanceof Error?error.message:String(error)},detectedViolations:[`SQL Parse Failure: ${error instanceof Error?error.message:String(error)}`]};
+  return {valid:false,statementType:'unknown',hasWindowFunction:false,hasPartitionByRequiredColumns:false,hasDeterministicTieBreaker:false,windowFrameType:'DEFAULT',referencedTables:[],astFingerprint:{parseError:error instanceof Error?error.message:String(error)},detectedViolations:[`SQL Parse Failure: ${error instanceof Error?error.message:String(error)}`]};
  }
 }
