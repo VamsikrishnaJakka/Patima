@@ -8,7 +8,7 @@ async function getTestUsers(client:any){
 }
 
 async function initSession(client:any,userId:string){
-  const node=await client.query(`SELECT id FROM capability_nodes WHERE slug='sql-window-functions' LIMIT 1`);
+  const node=await client.query(`SELECT id FROM capability_nodes WHERE slug='sql.window_functions' LIMIT 1`);
   if(!node.rows[0]) throw new Error('SQL capability node is not configured.');
   const res=await client.query(`
     INSERT INTO assessment_sessions
