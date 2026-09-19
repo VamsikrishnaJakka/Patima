@@ -42,16 +42,15 @@ const expressionName=(node:any):string=>{
 export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstValidationResult{
   const violations:string[]=[];
   const clean=sql.trim();
+  const withoutFrame=clean.replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
   let statementCountAst:any;
   try{statementCountAst=parse(clean)}catch{
-    const withoutFrame=clean.replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
     if(withoutFrame===clean)return {valid:false,error:'PARSE_ERROR: Unable to parse SQL statement.',detectedViolations:['SYNTAX_ERROR']};
     try{statementCountAst=parse(withoutFrame)}catch{return {valid:false,error:'PARSE_ERROR: Unable to parse SQL statement.',detectedViolations:['SYNTAX_ERROR']}}
   }
   if(statementCountAst.length!==1)return {valid:false,error:'SECURITY_VIOLATION: Exactly one SQL statement is required.',detectedViolations:['MULTI_STATEMENT_DETECTED']};
   let parsed:any;
   try{parsed=parseFirst(clean);}catch(error){
-    const withoutFrame=clean.replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
     if(withoutFrame!==clean){try{parsed=parseFirst(withoutFrame);}catch{}}
     if(!parsed)return {valid:false,error:`PARSE_ERROR: ${error instanceof Error?error.message:String(error)}`,detectedViolations:['SYNTAX_ERROR']};
   }
