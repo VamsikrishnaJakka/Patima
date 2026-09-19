@@ -36,7 +36,6 @@ DECLARE
   qfam RECORD;
   v INT;
   base_diff NUMERIC;
-  domain_label TEXT;
   concept TEXT;
   v_family_code TEXT;
   fingerprint TEXT;
@@ -60,7 +59,7 @@ BEGIN
       FOR fam IN SELECT generate_series(1,20) AS n
       LOOP
         v_family_code := upper(regexp_replace(d.label,'[^A-Za-z0-9]','','g')) || '_' || lvl.experience_level || '_F' || lpad(fam.n::text,2,'0');
-        concept := CASE f.n
+        concept := CASE fam.n
           WHEN 1 THEN 'core concepts'
           WHEN 2 THEN 'joins and relationships'
           WHEN 3 THEN 'filtering and predicates'
@@ -94,9 +93,9 @@ BEGIN
 
         FOR v IN 1..3 LOOP
           base_diff := CASE lvl.experience_level
-            WHEN 'BEGINNER' THEN 1.4 + ((f.n-1) % 9) * 0.25
-            WHEN 'INTERMEDIATE' THEN 4.3 + ((f.n-1) % 11) * 0.25
-            ELSE 7.3 + ((f.n-1) % 11) * 0.25
+            WHEN 'BEGINNER' THEN 1.4 + ((fam.n-1) % 9) * 0.25
+            WHEN 'INTERMEDIATE' THEN 4.3 + ((fam.n-1) % 11) * 0.25
+            ELSE 7.3 + ((fam.n-1) % 11) * 0.25
           END + CASE v WHEN 1 THEN 0 WHEN 2 THEN 0.1 ELSE 0.2 END;
 
           SELECT q.id INTO STRICT qfam FROM question_families q WHERE q.family_code=v_family_code;
