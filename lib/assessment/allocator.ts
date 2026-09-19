@@ -82,6 +82,14 @@ export async function allocateNextQuestion(
   let targetTheta = Number(session.starting_difficulty);
 
   if (req.submittedCode) {
+    // Security invariant: adaptive state may advance only from a server-produced
+    // authentic verification result. Never trust client-supplied isCorrect.
+    if (!req.verificationReport) {
+      throw new Error('VERIFICATION_REQUIRED_BEFORE_ADVANCE');
+    }
+    if (req.verificationReport.verdict !== 'ACCEPTED') {
+      throw new Error('VERIFICATION_FAILED_NO_ADVANCE');
+    }
     const submittedReservation = await client.query(`
       SELECT variant_id
       FROM active_question_reservations
@@ -118,7 +126,7 @@ export async function allocateNextQuestion(
     // Time-efficiency multiplier
     const timeFactor = (req.durationSeconds || 60) <= 45 ? 1.25 : 
                        (req.durationSeconds || 60) >= 180 ? 0.65 : 1.0;
-    const delta = (req.isCorrect ? +0.35 : -0.30) * timeFactor;
+    const delta = 0.35 * timeFactor;
 
     // Hard floor and ceiling clamping
     targetTheta = Math.min(
@@ -141,7 +149,7 @@ export async function allocateNextQuestion(
         AND assessment_adaptive_logs.step_index = $15
         AND q.id = assessment_adaptive_logs.variant_id
     `, [
-      req.submittedCode, req.isCorrect, req.durationSeconds || 0, targetTheta,
+      req.submittedCode, true, req.durationSeconds || 0, targetTheta,
       req.verificationReport?.publicTestsPassed || 0, req.verificationReport?.publicTestsTotal || 0,
       req.verificationReport?.hiddenTestsPassed || 0, req.verificationReport?.hiddenTestsTotal || 0,
       req.verificationReport?.executionTimeMs ?? null, req.verificationReport?.peakMemoryKb ?? null,
