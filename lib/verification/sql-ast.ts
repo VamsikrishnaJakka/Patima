@@ -46,8 +46,11 @@ export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstVali
   if(statements.length!==1)return {valid:false,error:'SECURITY_VIOLATION: Exactly one SQL statement is required.',detectedViolations:['MULTI_STATEMENT_DETECTED']};
   let parsed:any;
   try{parsed=parseFirst(clean);}catch(error){
-    return {valid:false,error:`PARSE_ERROR: ${error instanceof Error?error.message:String(error)}`,detectedViolations:['SYNTAX_ERROR']};
+    const withoutFrame=clean.replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
+    if(withoutFrame!==clean){try{parsed=parseFirst(withoutFrame);}catch{}}
+    if(!parsed)return {valid:false,error:`PARSE_ERROR: ${error instanceof Error?error.message:String(error)}`,detectedViolations:['SYNTAX_ERROR']};
   }
+  try{
   const statementType=String(parsed?.type||'unknown');
   if(statementType!=='select'&&statementType!=='with'&&statementType!=='with recursive'){
     violations.push('POLICY_VIOLATION: Only SELECT or WITH ... SELECT is permitted.');
