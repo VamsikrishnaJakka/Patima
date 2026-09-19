@@ -31,7 +31,7 @@ function validateExecutionSql(sql:string){
  }
  return sql;
 }
-function normalizeRows(rows:Record<string,unknown>[]){return rows.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,typeof value==='bigint'?Number(value):value instanceof Date?value.toISOString():value])));}
+function normalizeRows(rows:Record<string,unknown>[]){return rows.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,value])));}
 async function runBounded(connection:any,sql:string){
  let timer:ReturnType<typeof setTimeout>|undefined;
  try{
