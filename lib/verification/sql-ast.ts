@@ -63,7 +63,12 @@ export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstVali
   const collectCtes=(node:any)=>{
     if(!node||typeof node!=='object')return;
     if(Array.isArray(node)){node.forEach(collectCtes);return;}
-    if(node.type==='with')for(const item of node.bindings||node.ctes||[])if(item?.alias)cteNames.add(String(item.alias).toLowerCase());
+    if(node.type==='with'){
+      for(const item of node.bindings||node.ctes||[]){
+        if(item?.alias)cteNames.add(String(item.alias).toLowerCase());
+        if(item?.query)collectCtes(item.query);
+      }
+    }
     for(const value of Object.values(node))if(value&&typeof value==='object')collectCtes(value);
   };
   collectCtes(parsed);
