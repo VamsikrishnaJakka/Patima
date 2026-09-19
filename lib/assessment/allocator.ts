@@ -8,7 +8,7 @@ export interface NextQuestionRequest {
   durationSeconds?: number;
   isCorrect?: boolean;
   expectedVariantId?: string;
-}
+  verificationReport?: {verdict:string;publicTestsPassed:number;publicTestsTotal:number;hiddenTestsPassed:number;hiddenTestsTotal:number;executionTimeMs:number;peakMemoryKb:number|null;executionDigest:string;testCases?:unknown[]};
 
 export interface AllocatedQuestion {
   variantId: string;
@@ -127,10 +127,28 @@ export async function allocateNextQuestion(
 
     // Finalize current step in logs
     await client.query(`
-      UPDATE assessment_adaptive_logs 
-      SET candidate_response = $1, is_correct = $2, time_taken_seconds = $3, computed_theta_next = $4
-      WHERE session_id = $5 AND step_index = $6;
-    `, [req.submittedCode, req.isCorrect, req.durationSeconds || 0, targetTheta, session.id, session.current_step]);
+      UPDATE assessment_adaptive_logs
+      SET candidate_response = $1, is_correct = $2, time_taken_seconds = $3, computed_theta_next = $4,
+          question_type = q.question_type,
+          public_tests_passed = $5, public_tests_total = $6,
+          hidden_tests_passed = $7, hidden_tests_total = $8,
+          execution_time_ms = $9, peak_memory_kb = $10,
+          verification_status = $11, verification_output = $12::jsonb,
+          execution_digest = $13
+      FROM question_variants q
+      WHERE assessment_adaptive_logs.session_id = $14
+        AND assessment_adaptive_logs.step_index = $15
+        AND q.id = assessment_adaptive_logs.variant_id
+    `, [
+      req.submittedCode, req.isCorrect, req.durationSeconds || 0, targetTheta,
+      req.verificationReport?.publicTestsPassed || 0, req.verificationReport?.publicTestsTotal || 0,
+      req.verificationReport?.hiddenTestsPassed || 0, req.verificationReport?.hiddenTestsTotal || 0,
+      req.verificationReport?.executionTimeMs ?? null, req.verificationReport?.peakMemoryKb ?? null,
+      req.verificationReport?.verdict === 'ACCEPTED' ? 'PASSED' : (req.verificationReport?.verdict || 'NOT_RUN'),
+      JSON.stringify(req.verificationReport || {}),
+      req.verificationReport?.executionDigest || null,
+      session.id, session.current_step
+    ]);
 
     // Advance current_step
     const nextStep = session.current_step + 1;
