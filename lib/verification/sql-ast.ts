@@ -12,6 +12,7 @@ export interface SqlAstVerificationResult{
  statementType:string;
  hasWindowFunction:boolean;
  hasPartitionByRequiredColumns:boolean;
+ hasPartitionByUserId:boolean;
  hasDeterministicTieBreaker:boolean;
  windowFrameType:'RANGE'|'ROWS'|'DEFAULT';
  referencedTables:string[];
@@ -34,8 +35,8 @@ export function inspectSqlAst(sqlCode:string,options:SqlAstVerificationOptions={
  let windowFrameType:'RANGE'|'ROWS'|'DEFAULT'='DEFAULT';
  const windows:Array<Record<string,unknown>>=[];
  const referencedTables=new Set<string>();
- const requiredPartitionColumns=(options.requiredPartitionColumns||[]).map(x=>x.toLowerCase());
- const requiredOrderColumns=(options.requiredOrderColumns||[]).map(x=>x.toLowerCase());
+ const requiredPartitionColumns=(options.requiredPartitionColumns||['user_id']).map(x=>x.toLowerCase());
+ const requiredOrderColumns=(options.requiredOrderColumns||['event_time','event_id']).map(x=>x.toLowerCase());
  try{
   const statements=parse(sqlCode);
   if(statements.length!==1)throw new Error('Exactly one SQL statement is required.');
@@ -66,7 +67,7 @@ export function inspectSqlAst(sqlCode:string,options:SqlAstVerificationOptions={
    for(const value of Object.values(node))if(value&&typeof value==='object')collectCtes(value);
   };
   collectCtes(ast);
-  const allowed=new Set((options.allowedTables||[]).map(x=>x.toLowerCase()));
+  const allowed=new Set((options.allowedTables||['user_events','test_events']).map(x=>x.toLowerCase()));
   const unauthorized=[...referencedTables].filter(name=>!allowed.has(name)&&!cteNames.has(name));
   if(unauthorized.length)violations.push(`AST table allowlist violation: unauthorized table reference(s): ${unauthorized.join(', ')}.`);
   if(options.requireWindowFunction!==false&&!hasWindowFunction)violations.push('AST Error: No window function (OVER clause) found in submission.');
@@ -76,8 +77,8 @@ export function inspectSqlAst(sqlCode:string,options:SqlAstVerificationOptions={
   const hasExplicitRange=/\bRANGE\s+BETWEEN\b/i.test(sqlCode);
   if(hasExplicitRows)windowFrameType='ROWS';else if(hasExplicitRange)windowFrameType='RANGE';
   const normalized=JSON.stringify({statementType,windows,referencedTables:[...referencedTables].sort()});
-  return {valid:violations.length===0,statementType,hasWindowFunction,hasPartitionByRequiredColumns,hasDeterministicTieBreaker,windowFrameType,referencedTables:[...referencedTables].sort(),astFingerprint:{statementType,windows,windowCount:windows.length,referencedTables:[...referencedTables].sort(),normalized},detectedViolations:violations};
+  return {valid:violations.length===0,statementType,hasWindowFunction,hasPartitionByRequiredColumns,hasPartitionByUserId:requiredPartitionColumns.includes('user_id')&&hasPartitionByRequiredColumns,hasDeterministicTieBreaker,windowFrameType,referencedTables:[...referencedTables].sort(),astFingerprint:{statementType,windows,windowCount:windows.length,referencedTables:[...referencedTables].sort(),normalized},detectedViolations:violations};
  }catch(error){
-  return {valid:false,statementType:'unknown',hasWindowFunction:false,hasPartitionByRequiredColumns:false,hasDeterministicTieBreaker:false,windowFrameType:'DEFAULT',referencedTables:[],astFingerprint:{parseError:error instanceof Error?error.message:String(error)},detectedViolations:[`SQL Parse Failure: ${error instanceof Error?error.message:String(error)}`]};
+  return {valid:false,statementType:'unknown',hasWindowFunction:false,hasPartitionByRequiredColumns:false,hasPartitionByUserId:false,hasDeterministicTieBreaker:false,windowFrameType:'DEFAULT',referencedTables:[],astFingerprint:{parseError:error instanceof Error?error.message:String(error)},detectedViolations:[`SQL Parse Failure: ${error instanceof Error?error.message:String(error)}`]};
  }
 }
