@@ -3,23 +3,48 @@ import {Suspense,useState} from 'react';
 import {useRouter,useSearchParams} from 'next/navigation';
 import {AppShell} from '@/components/AppShell';
 
-const roles=['Data Engineer','Backend Engineer','Distributed Systems Engineer','Platform / DevOps Engineer'];
-const levels=[['JUNIOR','Junior (0–2 years)','Core syntax, basic partitioning & filtering'],['MID','Mid (3–5 years)','Boundary conditions, temporal gaps, tie-breaking'],['SENIOR','Senior / Staff (5+ years)','Memory, frame behavior, distributed execution']];
-const domains=[['sql-window-functions','SQL Window Functions & Event Stream Analytics'],['python-concurrency','Python Concurrency & Rate Limiting'],['java.concurrency_memory','Java Concurrency & Memory Model'],['linux.process_signals','Linux Systems, Signals & Process Trees'],['docker.container_internals','Docker Containers, Namespaces & cgroups']];
+const technologies=[
+ ['sql-window-functions','SQL','Adaptive SQL assessment'],
+ ['python-concurrency','Python','Adaptive Python assessment'],
+ ['java.concurrency_memory','Java','Adaptive Java assessment'],
+ ['linux.process_signals','Linux','Adaptive Linux assessment'],
+ ['docker.container_internals','Docker','Adaptive Docker assessment'],
+] as const;
+const levels=[
+ ['BEGINNER','Beginner','Foundational concepts and straightforward problem solving'],
+ ['INTERMEDIATE','Intermediate','Multi-step reasoning, edge cases, and practical implementation'],
+ ['ADVANCED','Advanced','Complex reasoning, boundaries, and deeper technical behavior'],
+] as const;
 
-function AssessmentSetup(){
- const router=useRouter(),params=useSearchParams(); const requested=params.get('domain')||''; const initialDomain=domains.some(([id])=>id===requested)?requested:domains[0][0]; const[role,setRole]=useState(roles[0]); const[seniority,setSeniority]=useState('MID'); const[domain,setDomain]=useState(initialDomain); const[loading,setLoading]=useState(false); const[error,setError]=useState('');
- const start=async(e:React.FormEvent)=>{e.preventDefault();setLoading(true);setError('');try{const res=await fetch('/api/assessment/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,seniority,domain})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Unable to start assessment');router.push(`/app/assessments/workspace?session=${encodeURIComponent(data.sessionId)}`)}catch(err){setError(err instanceof Error?err.message:'Unable to start assessment');setLoading(false)}};
- return <AppShell><div className="mx-auto max-w-3xl"><p className="eyebrow">ASSESSMENT CALIBRATION GATEWAY</p><h1 className="mt-2 text-3xl font-semibold">Configure your assessment battery</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">PATIMA uses your target role, seniority, and capability domain to select a three-probe verification battery. The final capability state is derived server-side from the complete battery.</p><form onSubmit={start} className="panel mt-6 space-y-7 p-6">
-  <div><label className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">1. Target technical role</label><select value={role} onChange={e=>setRole(e.target.value)} className="input mt-3 w-full">{roles.map(x=><option key={x}>{x}</option>)}</select></div>
-  <div><label className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">2. Seniority & experience horizon</label><div className="mt-3 grid gap-3 md:grid-cols-3">{levels.map(([id,label,desc])=><button key={id} type="button" onClick={()=>setSeniority(id)} className={`rounded-lg border p-4 text-left ${seniority===id?'border-emerald-500/60 bg-emerald-950/20':'border-white/10 bg-slate-950/40'}`}><span className="block text-sm font-medium">{label}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{desc}</span></button>)}</div></div>
-  <div><label className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">3. Capability focus domain</label><select value={domain} onChange={e=>setDomain(e.target.value)} className="input mt-3 w-full">{domains.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></div>
-  <div className="rounded-lg border border-white/10 bg-slate-950/50 p-4 text-xs text-slate-500"><div className="font-medium text-slate-300">Calibration preview</div><div className="mt-2 grid gap-1 sm:grid-cols-3"><span>Difficulty: {seniority==='JUNIOR'?'Foundational':seniority==='MID'?'Level 3':'Advanced'}</span><span>Structure: 3 progressive probes</span><span>Evidence: server verified</span></div></div>
-  {error&&<p className="text-sm text-rose-300" role="alert">{error}</p>}
-  <button disabled={loading} className="btn-primary w-full">{loading?'Generating battery…':'Generate calibrated assessment →'}</button>
- </form></div></AppShell>;
+function Setup(){
+ const router=useRouter(),params=useSearchParams();
+ const requested=params.get('domain')||'sql-window-functions';
+ const domain=technologies.some(x=>x[0]===requested)?requested:'sql-window-functions';
+ const tech=technologies.find(x=>x[0]===domain)!;
+ const[level,setLevel]=useState('INTERMEDIATE'); const[loading,setLoading]=useState(false); const[error,setError]=useState('');
+ const available=domain==='sql-window-functions'&&level==='INTERMEDIATE';
+ const start=async()=>{
+  if(!available)return;
+  setLoading(true);setError('');
+  try{
+   const res=await fetch('/api/assessment/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,experienceLevel:level})});
+   const data=await res.json(); if(!res.ok)throw new Error(data.error||'Unable to start assessment');
+   router.push(`/app/assessments/workspace?session=${encodeURIComponent(data.sessionId)}`);
+  }catch(e){setError(e instanceof Error?e.message:'Unable to start assessment');setLoading(false)}
+ };
+ return <AppShell><div className="mx-auto max-w-3xl">
+  <p className="eyebrow">ASSESSMENT SETUP</p><h1 className="mt-2 text-3xl font-semibold">{tech[1]} assessment</h1>
+  <p className="mt-2 text-sm leading-6 text-slate-500">Select the level that reflects the experience you want this assessment to measure. The adaptive engine will keep every question inside that level.</p>
+  <div className="panel mt-6 p-6">
+   <div className="grid gap-3 md:grid-cols-3">{levels.map(([id,label,desc])=><button key={id} type="button" onClick={()=>setLevel(id)} className={`rounded-lg border p-4 text-left ${level===id?'border-emerald-500/60 bg-emerald-950/20':'border-white/10 bg-slate-950/40'}`}><span className="block text-sm font-medium">{label}</span><span className="mt-2 block text-xs leading-5 text-slate-500">{desc}</span></button>)}</div>
+   <div className="mt-6 rounded-lg border border-white/10 bg-slate-950/40 p-4 text-sm">
+    <div className="font-medium text-slate-300">{level==='BEGINNER'?'10 questions · 15 minutes':level==='INTERMEDIATE'?'15 questions · 25 minutes':'20 questions · 40 minutes'}</div>
+    <p className="mt-1 text-xs leading-5 text-slate-500">Questions adapt based on your responses and time, while the server enforces the selected level.</p>
+   </div>
+   {!available&&<p className="mt-4 text-xs text-amber-300">This technology/level is not available yet because its question inventory has not been seeded. SQL Intermediate is currently ready for the first end-to-end student run.</p>}
+   {error&&<p className="mt-4 text-sm text-rose-300" role="alert">{error}</p>}
+   <button onClick={start} disabled={!available||loading} className="btn-primary mt-6 w-full">{loading?'Preparing your assessment…':'Start assessment →'}</button>
+  </div>
+ </div></AppShell>;
 }
-
-export default function AssessmentSetupPage(){
- return <Suspense fallback={<AppShell><div className="mx-auto max-w-3xl"><p className="eyebrow">ASSESSMENT CALIBRATION GATEWAY</p><h1 className="mt-2 text-3xl font-semibold">Loading assessment setup…</h1></div></AppShell>}><AssessmentSetup/></Suspense>;
-}
+export default function AssessmentSetupPage(){return <Suspense fallback={<AppShell><div className="mx-auto max-w-3xl"><p className="eyebrow">ASSESSMENT SETUP</p><h1 className="mt-2 text-3xl font-semibold">Loading…</h1></div></AppShell>}><Setup/></Suspense>}
