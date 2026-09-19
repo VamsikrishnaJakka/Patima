@@ -132,3 +132,11 @@ FROM target t
 WHERE v.id=t.id;
 
 -- Make only these explicitly authored variants executable. The rest remain THEORY.
+
+UPDATE question_variants v
+SET scenario_entity='customer_orders'
+FROM question_families f
+WHERE f.id=v.family_id
+  AND f.domain='sql-window-functions'
+  AND v.experience_level='INTERMEDIATE'
+  AND v.variant_code IN ('VAR_A','VAR_B','VAR_C');
