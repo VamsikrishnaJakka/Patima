@@ -30,7 +30,7 @@ export async function allocateNextQuestion(
   const sessionRes = await client.query(`
     SELECT s.id, s.user_id, s.domain, s.experience_level, s.current_step, 
            s.started_at, s.status,
-           c.total_questions, c.duration_minutes, c.min_difficulty, 
+           COALESCE(s.selected_question_count, c.total_questions) AS total_questions, COALESCE(s.selected_duration_minutes, c.duration_minutes) AS duration_minutes, c.min_difficulty, 
            c.max_difficulty, c.starting_difficulty,
            -- PostgreSQL calculates authoritative remaining time
            GREATEST(0, EXTRACT(EPOCH FROM (s.started_at + (c.duration_minutes * interval '1 minute') - clock_timestamp())))::INT AS remaining_seconds
@@ -191,7 +191,7 @@ export async function allocateNextQuestion(
     VALUES (
       $1, 
       $2, 
-      (SELECT s.started_at + (c.duration_minutes * interval '1 minute') + interval '1 minute'
+      (SELECT s.started_at + (COALESCE(s.selected_duration_minutes, c.duration_minutes) * interval '1 minute') + interval '1 minute'
        FROM assessment_sessions s
        JOIN assessment_level_configs c ON c.domain = s.domain AND c.experience_level = s.experience_level
        WHERE s.id = $2)
