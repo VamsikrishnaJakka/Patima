@@ -42,8 +42,13 @@ const expressionName=(node:any):string=>{
 export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstValidationResult{
   const violations:string[]=[];
   const clean=sql.trim();
-  const statements=parse(clean);
-  if(statements.length!==1)return {valid:false,error:'SECURITY_VIOLATION: Exactly one SQL statement is required.',detectedViolations:['MULTI_STATEMENT_DETECTED']};
+  let statementCountAst:any;
+  try{statementCountAst=parse(clean)}catch{
+    const withoutFrame=clean.replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
+    if(withoutFrame===clean)return {valid:false,error:'PARSE_ERROR: Unable to parse SQL statement.',detectedViolations:['SYNTAX_ERROR']};
+    try{statementCountAst=parse(withoutFrame)}catch{return {valid:false,error:'PARSE_ERROR: Unable to parse SQL statement.',detectedViolations:['SYNTAX_ERROR']}}
+  }
+  if(statementCountAst.length!==1)return {valid:false,error:'SECURITY_VIOLATION: Exactly one SQL statement is required.',detectedViolations:['MULTI_STATEMENT_DETECTED']};
   let parsed:any;
   try{parsed=parseFirst(clean);}catch(error){
     const withoutFrame=clean.replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
