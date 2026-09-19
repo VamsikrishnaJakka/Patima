@@ -59,13 +59,13 @@ export async function verifyCandidateSqlIsolated(candidateSql:string):Promise<Is
   const executionStart=performance.now();
   const reader=await runBounded(connection,executable);
   const duration=Math.round((performance.now()-executionStart)*100)/100;
-  const rows=normalizeRows(reader.getRowObjects() as Record<string,unknown>[]);
+  const rows=reader.getRowObjectsJson() as Record<string,unknown>[];
   assertions.push(assertion('Five fixture rows returned',rows.length===5,`Returned ${rows.length} rows`,'Returned 5 rows',duration));
   const usr1=rows.filter(row=>String(row.user_id??'')==='usr_1'),usr2=rows.filter(row=>String(row.user_id??'')==='usr_2');
   assertions.push(assertion('Independent user partitions',usr1.length===4&&usr2.length===1,`usr_1=${usr1.length}, usr_2=${usr2.length}`,'usr_1=4, usr_2=1',duration));
   const sessionValues=usr1.map(row=>row.session_id).filter(value=>value!==null&&value!==undefined).map(String);
   assertions.push(assertion('Inactivity creates a second session',new Set(sessionValues).size===2,`usr_1 session values=${JSON.stringify(sessionValues)}`,'Exactly 2 session identifiers for usr_1',duration));
-  const tieRows=usr1.filter(row=>String(row.event_time)==='2026-09-17T14:15:00.000Z'),tieIds=tieRows.map(row=>String(row.event_id));
+  const tieRows=usr1.filter(row=>String(row.event_time)==='2026-09-17 14:15:00'),tieIds=tieRows.map(row=>String(row.event_id));
   assertions.push(assertion('Timestamp tie retains both events',tieRows.length===2&&new Set(tieIds).size===2,`Tie rows=${tieRows.length}, unique ids=${new Set(tieIds).size}`,'Two distinct events at the same timestamp',duration));
   const executionDigest=crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
   return {allPassed:assertions.every(item=>item.passed),assertions,executionDigest,astValidation};
