@@ -1,9 +1,20 @@
 import {verifyCandidateSqlIsolated} from '../lib/verification/duckdb-engine';
 
-const validSql=`SELECT event_id,user_id,event_time,event_type,
-  SUM(CASE WHEN event_time - LAG(event_time) OVER (PARTITION BY user_id ORDER BY event_time,event_id) > INTERVAL '30 minutes' THEN 1 ELSE 0 END)
-    OVER (PARTITION BY user_id ORDER BY event_time,event_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS session_id
-FROM user_events
+const validSql=`WITH ordered AS (
+  SELECT event_id,user_id,event_time,event_type,
+    LAG(event_time) OVER (PARTITION BY user_id ORDER BY event_time,event_id) AS previous_event_time
+  FROM user_events
+),
+sessionized AS (
+  SELECT event_id,user_id,event_time,event_type,
+    SUM(CASE WHEN previous_event_time IS NOT NULL
+      AND event_time - previous_event_time > INTERVAL '30 minutes'
+      THEN 1 ELSE 0 END)
+      OVER (PARTITION BY user_id ORDER BY event_time,event_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS session_id
+  FROM ordered
+)
+SELECT event_id,user_id,event_time,event_type,session_id
+FROM sessionized
 ORDER BY user_id,event_time,event_id`;
 
 const checks:[string,()=>Promise<boolean>][]=[
