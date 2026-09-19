@@ -1,0 +1,3 @@
+export type TestCaseVerdict='AC'|'WA'|'TLE'|'MLE'|'RE'|'CE';
+export interface TestCaseResult{id:string;name:string;isPublic:boolean;status:TestCaseVerdict;executionTimeMs:number;memoryUsedKb:number|null;inputSnippet?:string;expectedOutput?:string;actualOutput?:string;errorMessage?:string}
+export interface SubmissionEvaluationReport{verdict:'ACCEPTED'|'WRONG_ANSWER'|'TIME_LIMIT_EXCEEDED'|'MEMORY_LIMIT_EXCEEDED'|'RUNTIME_ERROR'|'COMPILE_ERROR';allPassed:boolean;publicTestsPassed:number;publicTestsTotal:number;hiddenTestsPassed:number;hiddenTestsTotal:number;executionTimeMs:number;peakMemoryKb:number|null;testCases:TestCaseResult[];firstFailingTestCase?:TestCaseResult;executionDigest:string}
