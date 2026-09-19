@@ -18,7 +18,7 @@ FROM sessionized
 ORDER BY user_id,event_time,event_id`;
 
 const checks:[string,()=>Promise<boolean>][]=[
- ['canonical valid solution',async()=>{const r=await verifyCandidateSqlIsolated(validSql);return r.astValidation.valid&&r.allPassed;}],
+ ['canonical valid solution',async()=>{const r=await verifyCandidateSqlIsolated(validSql);if(!(r.astValidation.valid&&r.allPassed))console.error('[RUNTIME DIAGNOSTIC]',JSON.stringify(r,null,2));return r.astValidation.valid&&r.allPassed;}],
  ['unauthorized table access is rejected before execution',async()=>{const r=await verifyCandidateSqlIsolated(validSql.replace('FROM user_events','FROM user_events JOIN user_accounts ua ON true'));return !r.astValidation.valid&&r.astValidation.detectedViolations.some(v=>v.includes('user_accounts'));}],
  ['multi-statement input is rejected',async()=>{const r=await verifyCandidateSqlIsolated(`${validSql}; SELECT 1`);return !r.astValidation.valid;}],
  ['recursive runaway is bounded',async()=>{const recursive=`WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM t) SELECT row_number() OVER (PARTITION BY 1 ORDER BY n) AS rn,n FROM t`;const r=await verifyCandidateSqlIsolated(recursive);return !r.allPassed;}],
