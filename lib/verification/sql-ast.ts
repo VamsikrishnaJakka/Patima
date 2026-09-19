@@ -51,7 +51,10 @@ export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstVali
   if(statementCountAst.length!==1)return {valid:false,error:'SECURITY_VIOLATION: Exactly one SQL statement is required.',detectedViolations:['MULTI_STATEMENT_DETECTED']};
   let parsed:any;
   try{parsed=parseFirst(clean);}catch(error){
-    if(withoutFrame!==clean){try{parsed=parseFirst(withoutFrame);}catch{}}
+    if(withoutFrame!==clean){
+      try{parsed=parseFirst(withoutFrame);}
+      catch{parsed=undefined;}
+    }
     if(!parsed)return {valid:false,error:`PARSE_ERROR: ${error instanceof Error?error.message:String(error)}`,detectedViolations:['SYNTAX_ERROR']};
   }
   const statementType=String(parsed?.type||'unknown');
