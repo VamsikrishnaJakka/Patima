@@ -30,7 +30,7 @@ async function main(){
    try{
      const passed=await run();
      if(passed)console.log(`PASS ${name}`);
-     else{console.error(`FAIL ${name}`); if(name==='canonical valid solution'){const r=await verifyCandidateSqlIsolated(validSql);console.error(JSON.stringify({error:r.error,ast:r.astValidation,assertions:r.assertions},null,2));} if(name==='unauthorized table access is rejected before execution'){const r=await verifyCandidateSqlIsolated(validSql.replace('FROM user_events','FROM user_events JOIN user_accounts ua ON true'));console.error(JSON.stringify({error:r.error,ast:r.astValidation},null,2));} failed++;}
+     else{console.error(`FAIL ${name}`);failed++;}
    }catch(error){
      console.error(`FAIL ${name}: ${error instanceof Error?error.message:String(error)}`);
      failed++;
