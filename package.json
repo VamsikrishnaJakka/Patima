@@ -16,7 +16,8 @@
     "test:rls-crosstalk": "tsx tests/rls_crosstalk_gate.ts",
     "test:runtime": "tsx tests/sql_verification_runtime.test.ts",
     "test:evidence-coach": "tsx tests/evidence_coach.test.ts",
-    "setup:local": "node scripts/setup-local.mjs"
+    "setup:local": "node scripts/setup-local.mjs",
+    "test:security": "tsx tests/verification_security_gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
