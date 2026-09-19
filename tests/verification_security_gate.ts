@@ -119,21 +119,6 @@ async function run(){
       candidateCode:canonical,
       variant
     });
-    if(accepted.verdict!=='ACCEPTED'){
-      console.error('SECURITY 4 DIAGNOSTIC:');
-      console.error(JSON.stringify({
-        verdict:accepted.verdict,
-        allPassed:accepted.allPassed,
-        firstFailingTestCase:accepted.firstFailingTestCase,
-        testCases:accepted.testCases,
-        publicTestsPassed:accepted.publicTestsPassed,
-        publicTestsTotal:accepted.publicTestsTotal,
-        hiddenTestsPassed:accepted.hiddenTestsPassed,
-        hiddenTestsTotal:accepted.hiddenTestsTotal,
-        executionTimeMs:accepted.executionTimeMs,
-        executionDigest:accepted.executionDigest
-      },null,2));
-    }
     assert.equal(accepted.verdict,'ACCEPTED');
     assert.equal(accepted.allPassed,true);
     assert.ok(accepted.executionDigest);
