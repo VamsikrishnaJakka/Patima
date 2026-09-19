@@ -1,16 +1,21 @@
 import { directPool } from '../lib/db';
 import { allocateNextQuestion } from '../lib/assessment/allocator';
 
-const userA = 'c9a01f42-8812-4211-b0e1-482910482910';
-const userB = 'u0000000-0000-0000-0000-000000000002';
+async function getTestUsers(client:any){
+  const r=await client.query(`SELECT id FROM user_accounts WHERE role='candidate' AND status='ACTIVE' ORDER BY created_at LIMIT 2`);
+  if(r.rows.length<2) throw new Error('Need at least two active candidate users for adaptive gate.');
+  return [r.rows[0].id as string,r.rows[1].id as string];
+}
 
-async function initSession(client: any, userId: string) {
-  const res = await client.query(`
+async function initSession(client:any,userId:string){
+  const node=await client.query(`SELECT id FROM capability_nodes WHERE slug='sql-window-functions' LIMIT 1`);
+  if(!node.rows[0]) throw new Error('SQL capability node is not configured.');
+  const res=await client.query(`
     INSERT INTO assessment_sessions
-      (user_id, domain, experience_level, current_step, status, started_at)
-    VALUES ($1, 'sql', 'INTERMEDIATE', 1, 'ACTIVE', clock_timestamp())
+      (user_id,target_role,seniority,domain_slug,capability_node_id,domain,experience_level,current_step,status,started_at,expires_at,last_activity_at)
+    VALUES ($1,'Data Engineer','MID','sql-window-functions',$2,'sql','INTERMEDIATE',1,'IN_PROGRESS',clock_timestamp(),clock_timestamp()+interval '25 minutes',clock_timestamp())
     RETURNING id
-  `, [userId]);
+  `,[userId,node.rows[0].id]);
   return res.rows[0].id as string;
 }
 
@@ -31,6 +36,7 @@ async function run() {
   const clientB = await directPool.connect();
 
   try {
+    const [userA,userB]=await getTestUsers(clientA);
     const sessionA = await initSession(clientA, userA);
     const sessionB = await initSession(clientB, userB);
 
