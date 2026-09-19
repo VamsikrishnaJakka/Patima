@@ -37,7 +37,7 @@ DECLARE
   base_diff NUMERIC;
   domain_label TEXT;
   concept TEXT;
-  family_code TEXT;
+  v_family_code TEXT;
   fingerprint TEXT;
 BEGIN
   FOR d IN
@@ -58,7 +58,7 @@ BEGIN
     LOOP
       FOR f IN SELECT generate_series(1,20) AS n
       LOOP
-        family_code := upper(regexp_replace(d.label,'[^A-Za-z0-9]','','g')) || '_' || lvl.experience_level || '_F' || lpad(f.n::text,2,'0');
+        v_family_code := upper(regexp_replace(d.label,'[^A-Za-z0-9]','','g')) || '_' || lvl.experience_level || '_F' || lpad(f.n::text,2,'0');
         concept := CASE f.n
           WHEN 1 THEN 'core concepts'
           WHEN 2 THEN 'joins and relationships'
@@ -85,7 +85,7 @@ BEGIN
         INSERT INTO question_families(domain,family_code,concept_tag,description)
         VALUES(
           d.domain,
-          family_code,
+          v_family_code,
           lower(replace(concept,' ','_')),
           d.label || ' ' || lvl.experience_level || ' assessment family covering ' || concept || '.'
         )
@@ -98,9 +98,9 @@ BEGIN
             ELSE 7.3 + ((f.n-1) % 11) * 0.25
           END + CASE v WHEN 1 THEN 0 WHEN 2 THEN 0.1 ELSE 0.2 END;
 
-          SELECT q.id INTO STRICT f FROM question_families q WHERE q.family_code=family_code;
+          SELECT q.id INTO STRICT f FROM question_families q WHERE q.family_code=v_family_code;
 
-          fingerprint := repeat(md5(family_code || ':' || v::text),2);
+          fingerprint := repeat(md5(v_family_code || ':' || v::text),2);
 
           INSERT INTO question_variants(
             family_id,variant_code,fingerprint,difficulty_score,experience_level,
