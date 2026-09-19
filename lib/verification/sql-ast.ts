@@ -50,7 +50,6 @@ export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstVali
     if(withoutFrame!==clean){try{parsed=parseFirst(withoutFrame);}catch{}}
     if(!parsed)return {valid:false,error:`PARSE_ERROR: ${error instanceof Error?error.message:String(error)}`,detectedViolations:['SYNTAX_ERROR']};
   }
-  try{
   const statementType=String(parsed?.type||'unknown');
   if(statementType!=='select'&&statementType!=='with'&&statementType!=='with recursive'){
     violations.push('POLICY_VIOLATION: Only SELECT or WITH ... SELECT is permitted.');
