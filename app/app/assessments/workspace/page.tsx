@@ -3,7 +3,8 @@ import {Suspense,useEffect,useRef,useState} from 'react';
 import {useRouter,useSearchParams} from 'next/navigation';
 import {AppShell} from '@/components/AppShell';
 
-type Question={variantId:string;stepIndex:number;promptMarkdown:string;scenarioEntity:string;fixtureDdl:string;totalQuestions:number;remainingTimeSeconds:number};
+type FixturePreview={columns:string[];rows:(string|number|null)[][]};
+type Question={variantId:string;stepIndex:number;promptMarkdown:string;scenarioEntity:string;fixtureDdl:string;fixturePreview?:FixturePreview;totalQuestions:number;remainingTimeSeconds:number};
 type State={closed:boolean;status?:string;assessment?:{slug:string;title:string;description:string};question?:Question;session?:{experience_level:string;current_step:number;expires_at:string}};
 
 function Workspace(){
@@ -21,7 +22,7 @@ function Workspace(){
   <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">{state?.assessment?.title}</p><h1 className="mt-2 text-2xl font-semibold">Adaptive assessment</h1><p className="mt-1 text-sm text-slate-500">Question {q.stepIndex} of {q.totalQuestions}</p></div><div className="text-right text-xs text-slate-500">{seconds!==null&&<><div className={seconds<180?'text-amber-300':'text-slate-500'}>{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</div><div className="mt-1">remaining</div></>}</div></div>
   <div className="mt-5 h-1 rounded bg-slate-800"><div className="h-full rounded bg-emerald-400" style={{width:`${Math.min(100,(q.stepIndex/q.totalQuestions)*100)}%`}}/></div>
   <div className="panel mt-6 p-6"><p className="text-xs font-medium uppercase tracking-[0.14em] text-emerald-300">Your question</p><div className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-300">{q.promptMarkdown}</div>
-   <div className="mt-5 rounded-lg border border-white/10 bg-slate-950/40 p-4"><div className="text-xs uppercase tracking-[0.14em] text-slate-600">Controlled scenario</div><div className="mt-2 text-sm text-slate-400">{q.scenarioEntity}</div></div>
+   <div className="mt-5 rounded-lg border border-white/10 bg-slate-950/40 p-4"><div className="text-xs uppercase tracking-[0.14em] text-slate-600">Dataset</div><div className="mt-2 text-sm text-slate-400">{q.scenarioEntity}</div>{q.fixturePreview&&<div className="mt-4 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr>{q.fixturePreview.columns.map(col=><th key={col} className="border-b border-white/10 px-3 py-2 font-medium text-slate-500">{col}</th>)}</tr></thead><tbody>{q.fixturePreview.rows.map((row,i)=><tr key={i}>{row.map((cell,j)=><td key={j} className="border-b border-white/5 px-3 py-2 text-slate-400">{cell===null?'NULL':String(cell)}</td>)}</tr>)}</tbody></table></div>}</div>
    <textarea value={answer} onChange={e=>{setAnswer(e.target.value);events.current.push({type:'EDIT',at:new Date().toISOString()})}} className="textarea mt-6 min-h-52" placeholder="Explain your approach, reasoning, and important edge cases…" aria-label="Your answer"/>
    {error&&<p className="mt-3 text-sm text-rose-300" role="alert">{error}</p>}
    <div className="mt-4 flex items-center justify-between gap-4"><span className="text-xs text-slate-600">The next question adapts to your response and time.</span><button className="btn-primary" disabled={!answer.trim()||submitting||seconds===0} onClick={submit}>{submitting?'Evaluating…':'Submit & continue →'}</button></div>
