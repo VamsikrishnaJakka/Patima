@@ -18,7 +18,7 @@ WITH target AS (
   JOIN question_families f ON f.id=v.family_id
   WHERE f.domain='sql-window-functions'
     AND v.experience_level='INTERMEDIATE'
-    AND split_part(v.variant_code,'_',2) IN ('A','B','C')
+    AND v.variant_code IN ('VAR_A','VAR_B','VAR_C')
     AND regexp_replace(f.family_code,'^.*_F','') ~ '^[0-9]+$'
     AND regexp_replace(f.family_code,'^.*_F','')::int BETWEEN 1 AND 10
 )
