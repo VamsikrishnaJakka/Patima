@@ -76,7 +76,7 @@ export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstVali
   // nested WITH queries, so supplement the AST walk with a strict CTE-alias
   // declaration scan. These names are only exempted when declared as
   // "<identifier> AS (" inside the WITH clause.
-  const cteDeclarationPattern=/\\b(?:WITH\\s+(?:RECURSIVE\\s+)?|,\\s*)([a-z_][a-z0-9_]*)\\s+AS\\s*\\(/gi;
+  const cteDeclarationPattern=/\b(?:WITH\s+(?:RECURSIVE\s+)?|,\s*)([a-z_][a-z0-9_]*)\s+AS\s*\(/gi;
   for(const match of clean.matchAll(cteDeclarationPattern))cteNames.add(match[1].toLowerCase());
   const visitor=astVisitor((v:any)=>({
     tableRef:(t:any)=>{const n=String(t?.name||'').toLowerCase();if(n)referenced.add(n);return v.super().tableRef(t);},
