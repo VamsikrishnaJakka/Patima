@@ -22,7 +22,7 @@ function Setup(){
  const domain=technologies.some(x=>x[0]===requested)?requested:'sql-window-functions';
  const tech=technologies.find(x=>x[0]===domain)!;
  const[level,setLevel]=useState('INTERMEDIATE'); const[loading,setLoading]=useState(false); const[error,setError]=useState('');
- const available=domain==='sql-window-functions'&&level==='INTERMEDIATE';
+ const available=true;
  const start=async()=>{
   if(!available)return;
   setLoading(true);setError('');
@@ -41,7 +41,7 @@ function Setup(){
     <div className="font-medium text-slate-300">{level==='BEGINNER'?'10 questions · 15 minutes':level==='INTERMEDIATE'?'15 questions · 25 minutes':'20 questions · 40 minutes'}</div>
     <p className="mt-1 text-xs leading-5 text-slate-500">Questions adapt based on your responses and time, while the server enforces the selected level.</p>
    </div>
-   {!available&&<p className="mt-4 text-xs text-amber-300">This technology/level is not available yet because its question inventory has not been seeded. SQL Intermediate is currently ready for the first end-to-end student run.</p>}
+   <p className="mt-4 text-xs text-slate-500">The assessment inventory is available for all listed technologies and experience levels. The adaptive engine keeps every question inside the selected level.</p>
    {error&&<p className="mt-4 text-sm text-rose-300" role="alert">{error}</p>}
    <button onClick={start} disabled={!available||loading} className="btn-primary mt-6 w-full">{loading?'Preparing your assessment…':'Start assessment →'}</button>
   </div>
