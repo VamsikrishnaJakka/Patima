@@ -43,10 +43,10 @@ export async function allocateNextQuestion(
   if (sessionRes.rows.length === 0) throw new Error('SESSION_NOT_FOUND_OR_UNAUTHORIZED');
   const session = sessionRes.rows[0];
 
-  if (session.status !== 'ACTIVE') return null;
+  if (session.status !== 'IN_PROGRESS') return null;
 
   if (session.remaining_seconds <= 0) {
-    await client.query(`UPDATE assessment_sessions SET status = 'EXPIRED' WHERE id = $1;`, [session.id]);
+    await client.query(`UPDATE assessment_sessions SET status = 'EXPIRED', updated_at = clock_timestamp() WHERE id = $1;`, [session.id]);
     return null;
   }
 
@@ -135,13 +135,13 @@ export async function allocateNextQuestion(
     if (nextStep > session.total_questions) {
       await client.query(`
         UPDATE assessment_sessions 
-        SET status = 'COMPLETED', completed_at = clock_timestamp(), final_theta = $1
+        SET status = 'SUBMITTED', submitted_at = clock_timestamp(), final_theta = $1, updated_at = clock_timestamp()
         WHERE id = $2;
       `, [targetTheta, session.id]);
       return null;
     }
 
-    await client.query(`UPDATE assessment_sessions SET current_step = $1 WHERE id = $2;`, [nextStep, session.id]);
+    await client.query(`UPDATE assessment_sessions SET current_step = $1, updated_at = clock_timestamp() WHERE id = $2;`, [nextStep, session.id]);
     session.current_step = nextStep;
   }
 
@@ -175,7 +175,7 @@ export async function allocateNextQuestion(
       v.exposure_count ASC
     LIMIT 1
     FOR UPDATE OF v SKIP LOCKED;
-  `, [session.domain, session.experience_level, session.id, session.user_id, targetTheta]);
+  `, [session.domain, session.experience_level, session.id, session.user_id, targetTheta, Number(session.min_difficulty), Number(session.max_difficulty)]);
 
   if (variantRes.rows.length === 0) {
     throw new Error('INSUFFICIENT_QUESTION_INVENTORY_FOR_SPECIFICATION');
