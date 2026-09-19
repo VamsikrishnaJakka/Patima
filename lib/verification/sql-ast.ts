@@ -43,19 +43,15 @@ export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstVali
   const violations:string[]=[];
   const clean=sql.trim();
   const withoutFrame=clean.replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
+  const parseTarget=withoutFrame;
   let statementCountAst:any;
-  try{statementCountAst=parse(clean)}catch{
-    if(withoutFrame===clean)return {valid:false,error:'PARSE_ERROR: Unable to parse SQL statement.',detectedViolations:['SYNTAX_ERROR']};
-    try{statementCountAst=parse(withoutFrame)}catch{return {valid:false,error:'PARSE_ERROR: Unable to parse SQL statement.',detectedViolations:['SYNTAX_ERROR']}}
+  try{statementCountAst=parse(parseTarget)}catch{
+    return {valid:false,error:'PARSE_ERROR: Unable to parse SQL statement.',detectedViolations:['SYNTAX_ERROR']};
   }
   if(statementCountAst.length!==1)return {valid:false,error:'SECURITY_VIOLATION: Exactly one SQL statement is required.',detectedViolations:['MULTI_STATEMENT_DETECTED']};
   let parsed:any;
-  try{parsed=parseFirst(clean);}catch(error){
-    if(withoutFrame!==clean){
-      try{parsed=parseFirst(withoutFrame);}
-      catch{parsed=undefined;}
-    }
-    if(!parsed)return {valid:false,error:`PARSE_ERROR: ${error instanceof Error?error.message:String(error)}`,detectedViolations:['SYNTAX_ERROR']};
+  try{parsed=parseFirst(parseTarget);}catch(error){
+    return {valid:false,error:`PARSE_ERROR: ${error instanceof Error?error.message:String(error)}`,detectedViolations:['SYNTAX_ERROR']};
   }
   const statementType=String(parsed?.type||'unknown');
   if(statementType!=='select'&&statementType!=='with'&&statementType!=='with recursive'){
@@ -97,8 +93,9 @@ export function inspectSqlAst(sqlCode:string,options:SqlAstVerificationOptions={
     requiredPartitions:options.requiredPartitionColumns||['user_id'],
     requiredOrderings:options.requiredOrderColumns||['event_time','event_id']
   };
+  const parseTarget=sqlCode.trim().replace(/\bROWS\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+CURRENT\s+ROW\b/gi,'');
   let parsed:any;
-  try{parsed=parseFirst(sqlCode);}catch(error){
+  try{parsed=parseFirst(parseTarget);}catch(error){
     return {valid:false,statementType:'unknown',hasWindowFunction:false,hasPartitionByRequiredColumns:false,hasPartitionByUserId:false,hasDeterministicTieBreaker:false,windowFrameType:'DEFAULT',referencedTables:[],astFingerprint:{parseError:error instanceof Error?error.message:String(error)},detectedViolations:[`SQL Parse Failure: ${error instanceof Error?error.message:String(error)}`]};
   }
   const policy=validateSqlAstPolicy(sqlCode,reqs);
