@@ -158,7 +158,7 @@ async function run(){
       allocateNextQuestion(client,{
         sessionId:failedSession,userId,submittedCode:'SELECT 1;',isCorrect:true,
         expectedVariantId:failedQuestion!.variantId,
-        verificationReport:{...accepted,verdict:'WRONG_ANSWER',allPassed:false}
+        verificationReport:{...accepted,verdict:'WRONG_ANSWER'}
       }),
       /VERIFICATION_FAILED_NO_ADVANCE/
     );
