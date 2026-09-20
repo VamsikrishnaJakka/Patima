@@ -7,6 +7,7 @@ const setup=readFileSync(path.join(root,'app/app/assessments/setup/page.tsx'),'u
 const workspace=readFileSync(path.join(root,'app/app/assessments/workspace/page.tsx'),'utf8');
 const migration=readFileSync(path.join(root,'migrations/049_beginner_assessment_calibration.sql'),'utf8');
 const engineMigration=readFileSync(path.join(root,'migrations/050_execution_engine_contract.sql'),'utf8');
+const beginnerBank=readFileSync(path.join(root,'migrations/051_seed_beginner_sql_execution_bank.sql'),'utf8');
 
 console.log('[GATE 1] Beginner users can bypass assessment to a roadmap...');
 assert.ok(setup.includes('I’m a complete beginner')); assert.ok(setup.includes('/app/roadmap?domain=')); console.log('PASS');
@@ -37,4 +38,7 @@ assert.ok(readFileSync(path.join(root,'lib/verification/harness/complexity-analy
 assert.ok(readFileSync(path.join(root,'lib/verification/environment-digest.ts'),'utf8').includes('computeEnvironmentDigest'));
 console.log('PASS');
 
-console.log('ALL 7 ASSESSMENT IDE / EXECUTION ENGINE GATES PASSED.');
+console.log('[GATE 8] Beginner SQL has authored executable public and hidden tests...');
+assert.ok(beginnerBank.includes("experience_level='BEGINNER'")); assert.ok(beginnerBank.includes('public_tests')); assert.ok(beginnerBank.includes('hidden_tests')); assert.ok(beginnerBank.includes("requireWindowFunction',false")); console.log('PASS');
+
+console.log('ALL 8 ASSESSMENT IDE / EXECUTION ENGINE GATES PASSED.');
