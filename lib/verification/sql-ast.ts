@@ -90,7 +90,7 @@ export function validateSqlAstPolicy(sql:string,reqs:SqlAstRequirements):AstVali
     }
   }));
   visitor.statement(parsed);
-  for(const table of referenced)if(!allowed.has(table)&&!cteNames.has(table))violations.push(`UNAUTHORIZED_TABLE_ACCESS: '${table}'`);
+  for(const table of referenced)if(!allowed.has(table)&&!cteNames.has(table))violations.push(`UNAUTHORIZED_TABLE_ACCESS: '${table}'. Allowed table(s): ${[...allowed].join(', ')}`);
   if(reqs.requireWindowFunction&&!hasWindow)violations.push('MISSING_WINDOW_CONSTRUCT: Query must contain an explicit OVER clause.');
   for(const p of reqs.requiredPartitions||[])if(!partitions.has(p.toLowerCase()))violations.push(`MISSING_PARTITION_KEY: Window must partition by '${p}'.`);
   for(const o of reqs.requiredOrderings||[])if(!orderings.has(o.toLowerCase()))violations.push(`MISSING_ORDER_KEY: Window must order by '${o}'.`);
