@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
+import assert from 'node:assert/strict';
 import {runtimePool,withSessionClient} from '../lib/db';
 
 function loadLocalEnv(){
@@ -8,54 +9,102 @@ function loadLocalEnv(){
   for(const raw of text.split(/\r?\n/)){
    const line=raw.trim();const i=line.indexOf('=');if(i<1)continue;
    const key=line.slice(0,i).trim();if(process.env[key])continue;
-   let value=line.slice(i+1).trim();if(value.startsWith('"')&&value.endsWith('"'))value=value.slice(1,-1);process.env[key]=value;
+   let value=line.slice(i+1).trim();if(value.startsWith('"')&&value.endsWith('"'))value=value.slice(1,-1);
+   process.env[key]=value;
   }
  }catch{}
 }
 loadLocalEnv();
 
-const users=['c9a01f42-8812-4211-b0e1-482910482910','b0000000-0000-0000-0000-000000000002','c9a01f42-8812-4211-b0e1-482910482910'];
-let failed=false;
+const CANDIDATE='c9a01f42-8812-4211-b0e1-482910482910';
+const EMPLOYER='b0000000-0000-0000-0000-000000000002';
+const EMPLOYER_ACCOUNT='e0000000-0000-0000-0000-000000000001';
 
 async function run(){
- if(!process.env.DATABASE_URL){throw new Error('DATABASE_URL is required for the RLS cross-talk gate.');}
+ if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL is required for the RLS cross-talk gate.');
+
  console.log('================================================================');
- console.log('PATIMA RESILIENCE GATE: RLS SOCKET CONTAMINATION & CONCURRENCY');
+ console.log('PATIMA RESILIENCE GATE: RLS SESSION-CONTEXT ISOLATION');
  console.log('================================================================');
 
- console.log('[TEST 1] Interleaved sequential pool execution...');
- for(let i=0;i<users.length;i++){
-  const expected=users[i];
-  await withSessionClient(expected,async(client)=>{
-   const result=await client.query(`SELECT current_setting('app.current_user_id',true) AS user_id`);
-   if(result.rows[0]?.user_id!==expected){console.error(`FAIL: expected ${expected}, got ${result.rows[0]?.user_id}`);failed=true;}
-  });
- }
- if(!failed)console.log('PASS: zero tenant leakage across sequential iterations.');
+ console.log('[GATE 1] Transaction-local user context...');
+ await withSessionClient(CANDIDATE,async(client)=>{
+  const r=await client.query('SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id');
+  assert.equal(r.rows[0]?.user_id,CANDIDATE);
+  assert.equal(r.rows[0]?.employer_id,');
+ });
+ console.log('PASS: candidate context is set only inside its transaction.');
 
- console.log('[TEST 2] Aborted transaction cleanup...');
- try{await withSessionClient(users[0],async()=>{throw new Error('SIMULATED_TRANSACTION_CRASH');});}catch{}
- const cleanClient=await runtimePool.connect();
+ console.log('[GATE 2] Transaction-local employer context...');
+ await withSessionClient(EMPLOYER,async(client)=>{
+  const r=await client.query('SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id');
+  assert.equal(r.rows[0]?.user_id,EMPLOYER);
+  assert.equal(r.rows[0]?.employer_id,EMPLOYER_ACCOUNT);
+ });
+ console.log('PASS: employer user and organization context are both transaction-scoped.');
+
+ console.log('[GATE 3] Rollback clears both context values...');
+ try{await withSessionClient(CANDIDATE,async()=>{throw new Error('SIMULATED_TRANSACTION_CRASH');});}catch{}
+ const clean=await runtimePool.connect();
  try{
-  const result=await cleanClient.query(`SELECT current_setting('app.current_user_id',true) AS user_id`);
-  if(result.rows[0]?.user_id){console.error(`FAIL: residual tenant context ${result.rows[0].user_id}`);failed=true;}
-  else console.log('PASS: rollback leaves the pooled socket without tenant context.');
- }finally{cleanClient.release();}
+  const r=await clean.query('SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id');
+  assert.equal(r.rows[0]?.user_id,');
+  assert.equal(r.rows[0]?.employer_id,');
+ }finally{clean.release();}
+ console.log('PASS: failed transactions cannot leave identity or organization context on a pooled connection.');
 
- console.log('[TEST 3] High-concurrency mixed-user burst (15 requests)...');
- const burst=await Promise.all(Array.from({length:15},(_,index)=>{
-  const expected=users[index%users.length];
-  return withSessionClient(expected,async(client)=>{
-   await new Promise(resolve=>setTimeout(resolve,Math.random()*20));
-   const result=await client.query(`SELECT current_setting('app.current_user_id',true) AS user_id`);
-   return {expected,actual:result.rows[0]?.user_id};
-  });
- }));
- const mismatches=burst.filter(item=>item.expected!==item.actual);
- if(mismatches.length){console.error(`FAIL: ${mismatches.length} tenant context mismatches.`);failed=true;}else console.log('PASS: all 15 concurrent executions remained isolated.');
+ console.log('[GATE 4] Context switches cannot inherit prior identity...');
+ await withSessionClient(CANDIDATE,async(client)=>{
+  const r=await client.query('SELECT current_setting('app.current_user_id',true) AS user_id');
+  assert.equal(r.rows[0]?.user_id,CANDIDATE);
+ });
+ await withSessionClient(EMPLOYER,async(client)=>{
+  const r=await client.query('SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id');
+  assert.equal(r.rows[0]?.user_id,EMPLOYER);
+  assert.equal(r.rows[0]?.employer_id,EMPLOYER_ACCOUNT);
+ });
+ await withSessionClient(CANDIDATE,async(client)=>{
+  const r=await client.query('SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id');
+  assert.equal(r.rows[0]?.user_id,CANDIDATE);
+  assert.equal(r.rows[0]?.employer_id,');
+ });
+ console.log('PASS: candidate → employer → candidate transitions never inherit stale context.');
+
+ console.log('[GATE 5] RLS sees only the active candidate context...');
+ const candidateRows=await withSessionClient(CANDIDATE,async(client)=>{
+  const r=await client.query('SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100');
+  return r.rows;
+ });
+ assert.ok(candidateRows.every((row:any)=>row.user_id===CANDIDATE),'Candidate context exposed another user's assessment session.');
+ console.log('PASS: candidate RLS returned '+candidateRows.length+' visible assessment session rows, all owned by the candidate.');
+
+ console.log('[GATE 6] Employer context cannot masquerade as a candidate...');
+ await withSessionClient(EMPLOYER,async(client)=>{
+  const r=await client.query('SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100');
+  assert.equal(r.rows.length,0,'Employer context unexpectedly exposed candidate assessment sessions.');
+ });
+ console.log('PASS: employer context cannot read candidate assessment sessions.');
+
+ console.log('[GATE 7] Deterministic concurrent mixed-user isolation...');
+ const expected=[CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER];
+ const burst=await Promise.all(expected.map((userId,index)=>withSessionClient(userId,async(client)=>{
+  await client.query('SELECT pg_sleep($1)',[index%2===0?0.02:0.01]);
+  const r=await client.query('SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id');
+  return {expected:userId,actual:r.rows[0]?.user_id,employer:r.rows[0]?.employer_id};
+ })));
+ for(const item of burst){
+  assert.equal(item.actual,item.expected,'Concurrent user context crossed between pooled connections.');
+  assert.equal(item.employer,item.expected===EMPLOYER?EMPLOYER_ACCOUNT:','Concurrent employer context crossed between pooled connections.');
+ }
+ console.log('PASS: 8 deterministic concurrent transactions remained fully isolated.');
 
  await runtimePool.end();
- if(failed){console.error('GATE RESULT: FAILED');process.exit(1);}
- console.log('GATE RESULT: PASSED (RLS pool isolation verified)');
+ console.log(');
+ console.log('ALL 7 RLS SESSION-CONTEXT GATES PASSED.');
 }
-run().catch(async(error)=>{console.error(`Fatal gate error: ${error instanceof Error?error.message:String(error)}`);try{await runtimePool.end();}catch{}process.exit(1);});
+
+run().catch(async(error)=>{
+ console.error('GATE FAILURE:',error instanceof Error?error.message:String(error));
+ try{await runtimePool.end();}catch{}
+ process.exit(1);
+});
