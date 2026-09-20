@@ -76,6 +76,15 @@ async function cleanup(client:any){
   await client.query(`DELETE FROM assessment_sessions WHERE id=ANY($1::uuid[])`,[createdSessions]);
 }
 
+async function expireSession(client:any,sessionId:string){
+  await client.query(
+    `UPDATE assessment_sessions
+     SET status='EXPIRED',updated_at=clock_timestamp()
+     WHERE id=$1`,
+    [sessionId]
+  );
+}
+
 async function run(){
   const client=await directPool.connect();
   try{
@@ -150,6 +159,7 @@ async function run(){
     assert.equal(Number(state.rows[0].current_step),1);
     assert.equal(state.rows[0].status,'IN_PROGRESS');
     console.log('PASS: no verification evidence means no adaptive advancement.');
+    await expireSession(client,session);
 
     console.log('[SECURITY 7] Failed server verification cannot advance...');
     const failedSession=await createSession(client,userId);
@@ -164,22 +174,28 @@ async function run(){
       /VERIFICATION_FAILED_NO_ADVANCE/
     );
     console.log('PASS: failed verification cannot advance.');
+    await expireSession(client,failedSession);
 
     console.log('[SECURITY 8] Verification cannot be replayed against a different reservation...');
     const replaySession=await createSession(client,userId);
     const replayQuestion=await allocateNextQuestion(client,{sessionId:replaySession,userId});
     assert.ok(replayQuestion);
-    const otherSession=await createSession(client,userId);
-    const otherQuestion=await allocateNextQuestion(client,{sessionId:otherSession,userId});
-    assert.ok(otherQuestion);
+
+    const nextQuestion=await allocateNextQuestion(client,{
+      sessionId:replaySession,userId,submittedCode:canonical,isCorrect:true,
+      expectedVariantId:replayQuestion!.variantId,verificationReport:accepted
+    });
+    assert.ok(nextQuestion);
+
     await assert.rejects(
       allocateNextQuestion(client,{
-        sessionId:otherSession,userId,submittedCode:canonical,isCorrect:true,
+        sessionId:replaySession,userId,submittedCode:canonical,isCorrect:true,
         expectedVariantId:replayQuestion!.variantId,verificationReport:accepted
       }),
       /QUESTION_RESERVATION_MISMATCH|NO_ACTIVE_QUESTION_RESERVATION/
     );
     console.log('PASS: verification cannot be replayed against another reservation.');
+    await expireSession(client,replaySession);
 
     console.log('[SECURITY 9] Reservation expiry blocks submission...');
     const expirySession=await createSession(client,userId);
@@ -198,6 +214,7 @@ async function run(){
       /NO_ACTIVE_QUESTION_RESERVATION/
     );
     console.log('PASS: expired reservation cannot be submitted.');
+    await expireSession(client,expirySession);
 
     console.log('[SECURITY 10] Accepted verification is the only success condition...');
     const finalSession=await createSession(client,userId);
