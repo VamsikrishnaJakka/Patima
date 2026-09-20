@@ -14,9 +14,10 @@ function assertDirectDatabaseConfigured(){
 
 const runtimeConnectionString=configuredDatabaseUrl||localDatabaseUrl;
 const directConnectionString=configuredDirectUrl||configuredDatabaseUrl||localDatabaseUrl;
+const hostedSsl={rejectUnauthorized:true};
 
-export const runtimePool=new Pool({connectionString:runtimeConnectionString,max:Number(process.env.PG_POOL_MAX||(process.env.VERCEL?5:10)),idleTimeoutMillis:30000,connectionTimeoutMillis:5000,maxUses:0});
-export const directPool=new Pool({connectionString:directConnectionString,max:Number(process.env.PG_DIRECT_POOL_MAX||3),idleTimeoutMillis:10000,connectionTimeoutMillis:5000,maxUses:0});
+export const runtimePool=new Pool({connectionString:runtimeConnectionString,ssl:isHostedRuntime?hostedSsl:undefined,max:Number(process.env.PG_POOL_MAX||(process.env.VERCEL?5:10)),idleTimeoutMillis:30000,connectionTimeoutMillis:5000,maxUses:0});
+export const directPool=new Pool({connectionString:directConnectionString,ssl:isHostedRuntime?hostedSsl:undefined,max:Number(process.env.PG_DIRECT_POOL_MAX||3),idleTimeoutMillis:10000,connectionTimeoutMillis:5000,maxUses:0});
 export const pool=runtimePool;
 
 export async function query<T extends QueryResultRow=QueryResultRow>(text:string,params:unknown[]=[]){assertDatabaseConfigured();return runtimePool.query<T>(text,params);}
