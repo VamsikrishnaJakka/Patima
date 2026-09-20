@@ -85,7 +85,6 @@ export async function POST(request:Request){
    }
   }
   const message=error instanceof Error?error.message:'INTERNAL_ERROR';
-  const postgresCode=error&&typeof error==='object'&&'code' in error?String((error as {code?:unknown}).code):'';
   console.error('[PATIMA] assessment start failed', {domain, userId, message, postgresCode});
   const status=message==='UNAUTHORIZED'?401:
    message==='ASSESSMENT_LEVEL_NOT_CONFIGURED'?409:
