@@ -1,8 +1,6 @@
 import {readFileSync} from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
-import {runtimePool,withSessionClient} from "../lib/db";
-
 function loadLocalEnv(){
  try{
   const text=readFileSync(path.join(process.cwd(),".env.local"),"utf8");
@@ -16,6 +14,8 @@ function loadLocalEnv(){
 }
 loadLocalEnv();
 
+const {runtimePool,withSessionClient}=await import("../lib/db");
+ 
 const CANDIDATE="c9a01f42-8812-4211-b0e1-482910482910";
 const EMPLOYER="b0000000-0000-0000-0000-000000000002";
 const EMPLOYER_ACCOUNT="e0000000-0000-0000-0000-000000000001";
