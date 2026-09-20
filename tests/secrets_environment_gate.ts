@@ -28,11 +28,11 @@ for(const file of clientFiles){const text=readFileSync(join(root,file),'utf8');a
 console.log('PASS: client components contain no server-only secret environment access.');
 
 console.log('[GATE 4] Repository does not contain obvious hard-coded credential URLs...');
-const credentialUrl=/postgres(?:ql)?:\/\/[^\s"']+:[^\s"'@]+@/gi;
+const credentialUrl=/postgres(?:ql)?:\/\/[^\s"'`;,)\]}]+/gi;
 const realCredentialMarker=/(?:sk-[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,})/;
 const allowedLocalDatabaseUrl='postgresql://postgres:postgres@localhost:5432/patima_dev';
 const textualFiles=tracked.filter(file=>file!=='.env.example'&&!file.endsWith('.lock')&&!/\.(png|jpg|jpeg|gif|webp|ico|pdf|woff|woff2|ttf|eot|zip|gz|tar)$/i.test(file));
-for(const file of textualFiles){const text=readFileSync(join(root,file),'utf8');const credentialUrls=text.match(credentialUrl)||[];const unexpectedCredentials=credentialUrls.filter(value=>value!==allowedLocalDatabaseUrl);assert.equal(unexpectedCredentials.length,0,'hard-coded non-local credential URL in '+file);assert.doesNotMatch(text,realCredentialMarker,'credential-like token in '+file);}
+for(const file of textualFiles){const text=readFileSync(join(root,file),'utf8');const credentialUrls=(text.match(credentialUrl)||[]).map(value=>value.replace(/[;,.)\]}]+$/g,''));const unexpectedCredentials=credentialUrls.filter(value=>value!==allowedLocalDatabaseUrl);assert.equal(unexpectedCredentials.length,0,'hard-coded non-local credential URL in '+file);assert.doesNotMatch(text,realCredentialMarker,'credential-like token in '+file);}
 console.log('PASS: no obvious credential-bearing URLs or common token formats are committed.');
 
 console.log('[GATE 5] Passwords, API keys, and connection strings are not logged...');
