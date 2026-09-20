@@ -18,6 +18,13 @@ try{
   const client=await pool.connect();
   try{
    await client.query('BEGIN');
+   await client.query("SELECT pg_advisory_xact_lock(hashtextextended('patima:schema-migrations',0))");
+   const stillPending=await client.query('SELECT 1 FROM schema_migrations WHERE version=$1 LIMIT 1',[version]);
+   if(stillPending.rows.length){
+    await client.query('COMMIT');
+    console.log(`[PATIMA] skip ${file}`);
+    continue;
+   }
    try{await client.query(sql);}catch(error){const code=error&&typeof error==='object'&&'code' in error?String(error.code):'UNKNOWN';const message=error instanceof Error?error.message:String(error);throw new Error(`Migration ${file} failed [${code}]: ${message}`);}
    await client.query('INSERT INTO schema_migrations(version) VALUES($1)',[version]);
    await client.query('COMMIT');
