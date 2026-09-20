@@ -85,11 +85,20 @@ export async function POST(request:Request){
    }
   }
   const message=error instanceof Error?error.message:'INTERNAL_ERROR';
-  const status=message==='UNAUTHORIZED'?401:message==='ASSESSMENT_LEVEL_NOT_CONFIGURED'?409:message==='CAPABILITY_NOT_CONFIGURED'?503:500;
+  const postgresCode=error&&typeof error==='object'&&'code' in error?String((error as {code?:unknown}).code):'';
+  console.error('[PATIMA] assessment start failed', {domain, userId, message, postgresCode});
+  const status=message==='UNAUTHORIZED'?401:
+   message==='ASSESSMENT_LEVEL_NOT_CONFIGURED'?409:
+   message==='CAPABILITY_NOT_CONFIGURED'?503:
+   message==='INSUFFICIENT_QUESTION_INVENTORY_FOR_SPECIFICATION'?409:
+   message==='SESSION_NOT_FOUND_OR_UNAUTHORIZED'?404:
+   postgresCode==='42703'||postgresCode==='42P01'?503:500;
   return NextResponse.json({error:
    status===401?'Unauthorized':
-   status===409?'This experience level is not available for this technology yet.':
-   status===503?'Assessment capability is not configured':
+   status===409&&message==='ASSESSMENT_LEVEL_NOT_CONFIGURED'?'This experience level is not available for this technology yet.':
+   status===409&&message==='INSUFFICIENT_QUESTION_INVENTORY_FOR_SPECIFICATION'?'There are not enough unused questions for this assessment specification.':
+   status===404?'Assessment session was not found':
+   status===503?'Assessment database configuration is incomplete or outdated. Run the latest migrations.':
    'Unable to start assessment'
   },{status});
  }
