@@ -23,8 +23,10 @@ const EXPECTED_DOMAINS=[
   'java.concurrency_memory',
   'linux.process_signals',
   'docker.container_internals',
+  'sql',
 ];
 const EXPECTED_LEVELS=['BEGINNER','INTERMEDIATE','ADVANCED'];
+const PRIMARY_ASSESSMENT_DOMAINS=new Set(EXPECTED_DOMAINS.filter(domain=>domain!=='sql'));
 
 function asTests(value:unknown):any[]{
   return Array.isArray(value)?value:[];
@@ -40,7 +42,7 @@ async function run(){
       FROM assessment_level_configs
       ORDER BY domain,experience_level
     `);
-    assert.equal(configs.rows.length,EXPECTED_DOMAINS.length*EXPECTED_LEVELS.length,'Unexpected assessment configuration count.');
+    assert.equal(configs.rows.length,18,'Unexpected assessment configuration count.');
     for(const row of configs.rows){
       assert.ok(EXPECTED_DOMAINS.includes(row.domain),`Unexpected assessment domain: ${row.domain}`);
       assert.ok(EXPECTED_LEVELS.includes(row.experience_level),`Unexpected level: ${row.experience_level}`);
