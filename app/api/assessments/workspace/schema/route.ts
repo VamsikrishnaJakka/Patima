@@ -33,7 +33,7 @@ export async function GET(request:Request){
         const desc=await conn.runAndReadAll(`DESCRIBE ${String(scenario_entity).replace(/[^A-Za-z0-9_]/g,'')}`);
         const preview=await conn.runAndReadAll(`SELECT * FROM ${String(scenario_entity).replace(/[^A-Za-z0-9_]/g,'')} LIMIT 8`);
         return NextResponse.json({
-          tableName:scenario_entity,
+          tableName,
           columns:desc.getRowObjects().map((x:any)=>({name:String(x.column_name),type:String(x.column_type)})),
           sampleData:(preview.getRowObjects() as any[]).map(row=>JSON.parse(JSON.stringify(row,(_key,value)=>typeof value==='bigint'?Number(value):value instanceof Date?value.toISOString():value)))
         });
