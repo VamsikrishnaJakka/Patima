@@ -16,6 +16,21 @@ WHERE f.id=v.family_id
   AND v.variant_code='VAR_A';
 
 UPDATE question_variants v
+SET public_tests=jsonb_build_array(
+      jsonb_build_object('name','paid orders','fixture_ddl',v.fixture_ddl,'canonical_sql','SELECT order_id, amount FROM customer_orders WHERE status=''PAID'' ORDER BY order_id','order_sensitive',true),
+      jsonb_build_object('name','high value orders','fixture_ddl',v.fixture_ddl,'canonical_sql','SELECT order_id, amount FROM customer_orders WHERE amount >= 100 ORDER BY order_id','order_sensitive',true)
+    ),
+    hidden_tests=jsonb_build_array(
+      jsonb_build_object('name','hidden paid order','fixture_ddl',replace(v.fixture_ddl,'(2,204,''2026-01-10'',110.00,''CANCELLED'')','(2,204,''2026-01-10'',110.00,''CANCELLED''),(3,301,''2026-01-11'',1000.00,''PAID'')'),'canonical_sql','SELECT order_id, amount FROM customer_orders WHERE status=''PAID'' ORDER BY order_id','order_sensitive',true)
+    )
+FROM question_families f
+WHERE f.id=v.family_id
+  AND f.domain='sql-window-functions'
+  AND v.experience_level='BEGINNER'
+  AND v.variant_code='VAR_A'
+  AND v.response_mode='CODE';
+
+UPDATE question_variants v
 SET response_mode='MCQ',
     question_type='THEORY',
     answer_options=CASE f.concept_tag
