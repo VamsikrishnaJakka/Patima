@@ -60,7 +60,7 @@ async function run(){
       GROUP BY f.domain,f.concept_tag
       ORDER BY f.domain,f.concept_tag
     `);
-    assert.equal(familyCounts.rows.length,105,'Expected 20 authored families per each of the five primary domains plus 5 legacy SQL concept groups.');
+    assert.equal(familyCounts.rows.length,119,'Expected the current seeded family/concept inventory across primary and legacy domains.');
     for(const row of familyCounts.rows){
       assert.equal(Number(row.family_count),1,`Duplicate concept/family inventory detected for ${row.domain}/${row.concept_tag}`);
     }
