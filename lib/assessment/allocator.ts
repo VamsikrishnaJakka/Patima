@@ -8,7 +8,7 @@ export interface NextQuestionRequest {
   durationSeconds?: number;
   isCorrect?: boolean;
   expectedVariantId?: string;
-  verificationReport?: {verdict:string;publicTestsPassed:number;publicTestsTotal:number;hiddenTestsPassed:number;hiddenTestsTotal:number;executionTimeMs:number;peakMemoryKb:number|null;executionDigest:string;testCases?:unknown[];isCorrect?:boolean};
+  verificationReport?: {verdict:string;publicTestsPassed:number;publicTestsTotal:number;hiddenTestsPassed:number;hiddenTestsTotal:number;executionTimeMs:number;peakMemoryKb:number|null;executionDigest:string;testCases?:unknown[];isCorrect?:boolean|null};
   skipCurrent?: boolean;
 }
 
@@ -150,15 +150,9 @@ export async function allocateNextQuestion(
     const timeFactor = (req.durationSeconds || 60) <= 45 ? 1.25 : 
                        (req.durationSeconds || 60) >= 180 ? 0.65 : 1.0;
     const delta = 0.35 * timeFactor;
-    const correct = req.verificationReport.isCorrect ?? (req.verificationReport.verdict === 'ACCEPTED');
-
-    // A submitted wrong answer is still a completed response. It must not trap
-    // the candidate on the same question; adaptive difficulty moves down on an
-    // incorrect answer and up on a correct answer.
-    targetTheta = Math.min(
-      Number(session.max_difficulty),
-      Math.max(Number(session.min_difficulty), prevTheta + (correct ? delta : -delta))
-    );
+    const correctness = req.verificationReport.isCorrect ?? (req.verificationReport.verdict === 'ACCEPTED');
+    const adjustment = correctness === null ? 0 : (correctness ? delta : -delta);
+    targetTheta = Math.min(Number(session.max_difficulty), Math.max(Number(session.min_difficulty), prevTheta + adjustment));
 
     // Finalize current step in logs
     await client.query(`
@@ -175,7 +169,7 @@ export async function allocateNextQuestion(
         AND assessment_adaptive_logs.step_index = $15
         AND q.id = assessment_adaptive_logs.variant_id
     `, [
-      req.submittedCode, correct, req.durationSeconds || 0, targetTheta,
+      req.submittedCode, correctness === null ? null : correctness, req.durationSeconds || 0, targetTheta,
       req.verificationReport?.publicTestsPassed || 0, req.verificationReport?.publicTestsTotal || 0,
       req.verificationReport?.hiddenTestsPassed || 0, req.verificationReport?.hiddenTestsTotal || 0,
       req.verificationReport?.executionTimeMs ?? null, req.verificationReport?.peakMemoryKb ?? null,
