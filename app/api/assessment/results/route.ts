@@ -44,7 +44,7 @@ export async function GET(request:Request){
       WHERE er.user_id=a.user_id AND er.capability_node_id=a.capability_node_id AND er.recorded_at>=a.created_at
       ORDER BY er.recorded_at DESC LIMIT 1
     ) er ON TRUE
-    WHERE a.user_id=$1 AND a.status='VERIFIED'
+    WHERE a.user_id=$1 AND a.status IN ('VERIFIED','SUBMITTED')
       AND ($2::uuid IS NULL OR a.id=$2::uuid)
     ORDER BY a.submitted_at DESC
   `,[s.userId,sessionId||null]));
