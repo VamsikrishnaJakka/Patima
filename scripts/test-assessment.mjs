@@ -1,7 +1,10 @@
 import pg from 'pg';
 import process from 'node:process';
+import nextEnv from '@next/env';
+const {loadEnvConfig}=nextEnv;
+loadEnvConfig(process.cwd());
 const {Pool}=pg;
-const url=process.env.DATABASE_URL||'postgresql://postgres:postgres@localhost:5432/patima_dev';
+const url=process.env.DIRECT_URL||process.env.DATABASE_URL||'postgresql://postgres:postgres@localhost:5432/patima_dev';
 const pool=new Pool({connectionString:url,max:1});
 const checks=[];
 async function check(name,sql,params=[],predicate=v=>Boolean(v)){const r=await pool.query(sql,params);const ok=predicate(r);checks.push([ok,name]);if(!ok)throw new Error(`FAIL ${name}`);console.log(`PASS ${name}`)}
