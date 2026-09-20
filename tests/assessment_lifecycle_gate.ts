@@ -200,7 +200,8 @@ async function run(){
       [userId],
     );
     assert.ok(candidateB.rows[0], 'Need a second active candidate for cross-session binding gate.');
-    const sessionB=await createSession(client,candidateB.rows[0].id as string,2);
+    const userB=candidateB.rows[0].id as string;
+    const sessionB=await createSession(client,userB,2);
     const variantB=await getExecutableVariant(client,variant.id);
     await reserveAuthoritativeQuestion(client,sessionB,variantB);
 
@@ -208,7 +209,7 @@ async function run(){
     try{
       await allocateNextQuestion(client,{
         sessionId:sessionB,
-        userId,
+        userId:userB,
         submittedCode:candidate,
         durationSeconds:20,
         expectedVariantId:variant.id,
