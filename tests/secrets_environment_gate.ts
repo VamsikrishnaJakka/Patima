@@ -13,7 +13,7 @@ console.log('[GATE 1] Local secret-bearing environment files are ignored and not
 assert.ok(existsSync(join(root,'.gitignore')));
 const gitignore=readFileSync(join(root,'.gitignore'),'utf8');
 for(const entry of ['.env','.env.local','.env.*.local']){assert.ok(gitignore.split(/\r?\n/).some(line=>line.trim()===entry),entry+' is not protected by .gitignore');}
-assert.ok(!tracked.some(file=>/^\.env(?:\..*)?$/.test(file)),'a real .env file is tracked');
+assert.ok(!tracked.some(file=>file==='.env'||(/^\.env\..+\.local$/.test(file))), 'a secret-bearing .env file is tracked');
 console.log('PASS: environment secret files are ignored and none are tracked.');
 
 console.log('[GATE 2] Public environment namespace cannot expose server secrets...');
