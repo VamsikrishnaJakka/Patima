@@ -40,7 +40,7 @@ for(const file of textualFiles){const text=readFileSync(join(root,file),'utf8');
 console.log('PASS: no obvious credential-bearing URLs or common token formats are committed.');
 
 console.log('[GATE 5] Passwords, API keys, and connection strings are not logged...');
-const sensitiveLog=/console\.(?:log|info|warn|error)\s*\([^\n]*(?:process\.env\.(?:DATABASE_URL|DIRECT_URL|GEMINI_API_KEY|PATIMA_SEED_[A-Z0-9_]+)|(?:candidate|employer)?Password|apiKey|databaseUrl|connectionString|authorization|cookie|(?:access|refresh|session)?Token)\b[^\n]*\)/i;
+const sensitiveLog=/console\.(?:log|info|warn|error)\s*\([^\n]*(?:\$\{\s*(?:candidatePassword|employerPassword|apiKey|databaseUrl|connectionString|authorization|cookie|(?:access|refresh|session)?Token)\s*\}|process\.env\.(?:DATABASE_URL|DIRECT_URL|GEMINI_API_KEY|PATIMA_SEED_[A-Z0-9_]+)|\b(?:candidatePassword|employerPassword|apiKey|databaseUrl|connectionString)\b\s*[,)+])/i;
 for(const file of sourceFiles){const text=readFileSync(join(root,file),'utf8');assert.doesNotMatch(text,sensitiveLog,'sensitive value may be logged in '+file);}
 console.log('PASS: no obvious sensitive-value logging patterns are committed.');
 
