@@ -17,7 +17,8 @@ const identifiers=(value:string)=>{
 export function analyzeSqlStructure(sql:string):SqlStructuralAnalysis{
  const detected=new Set<string>(),partitionKeys:string[]=[],orderKeys:string[]=[],observations:string[]=[],codeSmells:string[]=[];
  let frame=false,unbounded=false;
- try{parseFirst(sql)}catch{return{complexityProfile:{theoreticalTime:'O(n)',theoreticalSpace:'O(n)',rationale:'Unparseable query.'},detectedClauses:[],partitionKeys:[],orderKeys:[],windowFrameExplicit:false,hasUnboundedPreceding:false,performanceObservations:[],codeSmells:['Syntax prevents deep structural analysis.']}};
+ let parseable=true;
+ try{parseFirst(sql)}catch{parseable=false}
 
  for(const c of ['SELECT','FROM','WHERE','GROUP BY','HAVING','JOIN','ORDER BY','OVER','PARTITION BY'])if(new RegExp('\\b'+c.replace(' ','\\s+')+'\\b','i').test(sql))detected.add(c==='OVER'?'WINDOW (OVER)':c);
  if(/\b(ROWS|RANGE)\s+BETWEEN\b/i.test(sql)){frame=true;detected.add('EXPLICIT_FRAME')}
@@ -35,6 +36,7 @@ export function analyzeSqlStructure(sql:string):SqlStructuralAnalysis{
 
  let time:'O(n)'|'O(n log n)'|'O(n^2)'='O(n)',rationale='Linear scan without an explicit sort.';
  if(orderKeys.length||/\bORDER\s+BY\b/i.test(sql)){time='O(n log n)';rationale='Sorting is required for ordered output or window evaluation.'}
+ if(!parseable)codeSmells.push('Parser could not build a full AST; structural findings are lexical heuristics.');
  if(/\bCROSS\s+JOIN\b/i.test(sql)||(/\bJOIN\b/i.test(sql)&&!/\bON\b/i.test(sql))){time='O(n^2)';rationale='A join without a predicate can create a Cartesian row expansion.';codeSmells.push('Join without a predicate may cause quadratic row growth.')}
  if(detected.has('WINDOW (OVER)')&&!frame)observations.push('Window frame is implicit. For cumulative windows, make ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW explicit when peer-row semantics matter.');
  if(detected.has('WHERE')&&detected.has('WINDOW (OVER)'))observations.push('Filtering before window evaluation can reduce rows participating in partitioning and sorting.');
