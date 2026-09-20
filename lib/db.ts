@@ -32,7 +32,7 @@ export async function withSessionClient<T>(userId:string,callback:(client:PoolCl
  try{
   await client.query('BEGIN');
   await client.query('SELECT set_config($1,$2,true)',['app.current_user_id',userId]);
-  await client.query('SELECT set_config($1,$2,true)',['app.current_employer_account_id',options.employerAccountId||'']);
+  await client.query('SELECT set_config($1,$2,true)',['app.current_employer_account_id',options.employerAccountId??'']);
   const result=await callback(client);
   await client.query('COMMIT');
   return result;
