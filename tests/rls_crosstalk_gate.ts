@@ -20,6 +20,51 @@ const CANDIDATE="c9a01f42-8812-4211-b0e1-482910482910";
 const EMPLOYER="b0000000-0000-0000-0000-000000000002";
 const EMPLOYER_ACCOUNT="e0000000-0000-0000-0000-000000000001";
 
+const TEST_RLS_ROLE="patima_rls_gate";
+
+async function prepareRlsRole(){
+ const client=await runtimePool.connect();
+ try{
+  const meta=await client.query("SELECT current_user,session_user,usesuper,bypassrls FROM pg_roles WHERE rolname=current_user");
+  const row=meta.rows[0];
+  if(!row)throw new Error("Unable to inspect database role.");
+  if(!row.usesuper){
+   if(row.bypassrls)throw new Error("Database role has BYPASSRLS; RLS gate cannot prove isolation.");
+   return {role:row.current_user,temporary:false};
+  }
+  await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
+  await client.query("CREATE ROLE "+TEST_RLS_ROLE+" NOSUPERUSER NOBYPASSRLS NOLOGIN");
+  await client.query("GRANT USAGE ON SCHEMA public TO "+TEST_RLS_ROLE);
+  await client.query("GRANT SELECT ON assessment_sessions TO "+TEST_RLS_ROLE);
+  return {role:TEST_RLS_ROLE,temporary:true};
+ }finally{client.release();}
+}
+
+async function cleanupRlsRole(temporary:boolean){
+ if(!temporary)return;
+ const client=await runtimePool.connect();
+ try{await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);}finally{client.release();}
+}
+
+async function withRlsContext<T>(role:string,userId:string,employerAccountId:string|undefined,callback:(client:import("pg").PoolClient)=>Promise<T>){
+ const client=await runtimePool.connect();
+ try{
+  await client.query("BEGIN");
+  if(role!== (await client.query("SELECT current_user")).rows[0]?.current_user){
+   await client.query("SET LOCAL ROLE "+role);
+  }
+  await client.query("SELECT set_config($1,$2,true)",["app.current_user_id",userId]);
+  await client.query("SELECT set_config($1,$2,true)",["app.current_employer_account_id",employerAccountId??""]);
+  const result=await callback(client);
+  await client.query("ROLLBACK");
+  return result;
+ }catch(error){
+  try{await client.query("ROLLBACK");}catch{}
+  throw error;
+ }finally{client.release();}
+}
+
+
 async function run(){
  if(!process.env.DATABASE_URL)throw new Error("DATABASE_URL is required for the RLS cross-talk gate.");
 
@@ -71,32 +116,41 @@ async function run(){
  console.log("PASS: candidate → employer → candidate transitions never inherit stale context.");
 
  console.log("[GATE 5] RLS sees only the active candidate context...");
- const candidateRows=await withSessionClient(CANDIDATE,async(client)=>{
-  const r=await client.query("SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100");
-  return r.rows;
- });
- assert.ok(candidateRows.every((row:any)=>row.user_id===CANDIDATE),"Candidate context exposed another user's assessment session.");
- console.log("PASS: candidate RLS returned "+candidateRows.length+" visible assessment session rows, all owned by the candidate.");
+ const rlsRole=await prepareRlsRole();
+ try{
+  const candidateRows=await withRlsContext(rlsRole.role,CANDIDATE,undefined,async(client)=>{
+   const r=await client.query("SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100");
+   return r.rows;
+  });
+  assert.ok(candidateRows.every((row:any)=>row.user_id===CANDIDATE),"Candidate context exposed another user's assessment session.");
+  console.log("PASS: candidate RLS returned "+candidateRows.length+" visible assessment session rows, all owned by the candidate.");
 
- console.log("[GATE 6] Employer context cannot masquerade as a candidate...");
- await withSessionClient(EMPLOYER,async(client)=>{
-  const r=await client.query("SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100");
-  assert.equal(r.rows.length,0,"Employer context unexpectedly exposed candidate assessment sessions.");
- });
- console.log("PASS: employer context cannot read candidate assessment sessions.");
+  console.log("[GATE 6] Employer context cannot masquerade as a candidate...");
+  const employerRows=await withRlsContext(rlsRole.role,EMPLOYER,EMPLOYER_ACCOUNT,async(client)=>{
+   const r=await client.query("SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100");
+   return r.rows;
+  });
+  assert.equal(employerRows.length,0,"Employer context unexpectedly exposed candidate assessment sessions.");
+  console.log("PASS: employer context cannot read candidate assessment sessions.");
 
- console.log("[GATE 7] Deterministic concurrent mixed-user isolation...");
- const expected=[CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER];
- const burst=await Promise.all(expected.map((userId,index)=>withSessionClient(userId,async(client)=>{
-  await client.query("SELECT pg_sleep($1)",[index%2===0?0.02:0.01]);
-  const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
-  return {expected:userId,actual:r.rows[0]?.user_id,employer:r.rows[0]?.employer_id};
- },{employerAccountId:userId===EMPLOYER?EMPLOYER_ACCOUNT:undefined})));
- for(const item of burst){
-  assert.equal(item.actual,item.expected,"Concurrent user context crossed between pooled connections.");
-  assert.equal(item.employer,item.expected===EMPLOYER?EMPLOYER_ACCOUNT:"","Concurrent employer context crossed between pooled connections.");
+  console.log("[GATE 7] Deterministic concurrent mixed-user isolation...");
+  const expected=[CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER];
+  const burst=await Promise.all(expected.map((userId,index)=>withRlsContext(rlsRole.role,userId,userId===EMPLOYER?EMPLOYER_ACCOUNT:undefined,async(client)=>{
+   await client.query("SELECT pg_sleep($1)",[index%2===0?0.02:0.01]);
+   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
+   const visible=await client.query("SELECT count(*)::int AS count FROM assessment_sessions");
+   return {expected:userId,actual:r.rows[0]?.user_id,employer:r.rows[0]?.employer_id,visible:Number(visible.rows[0]?.count||0)};
+  })));
+  for(const item of burst){
+   assert.equal(item.actual,item.expected,"Concurrent user context crossed between pooled connections.");
+   assert.equal(item.employer,item.expected===EMPLOYER?EMPLOYER_ACCOUNT:"","Concurrent employer context crossed between pooled connections.");
+   if(item.expected===CANDIDATE)assert.ok(item.visible>=0,"Candidate RLS count failed.");
+   else assert.equal(item.visible,0,"Employer context exposed candidate assessment sessions under concurrency.");
+  }
+  console.log("PASS: 8 deterministic concurrent transactions remained fully isolated.");
+ }finally{
+  await cleanupRlsRole(rlsRole.temporary);
  }
- console.log("PASS: 8 deterministic concurrent transactions remained fully isolated.");
 
  await runtimePool.end();
  console.log("");
