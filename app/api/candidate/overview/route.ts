@@ -19,6 +19,12 @@ export async function GET(){
           ORDER BY cn.name
         `,[s.userId]);
         const completed=await client.query(`SELECT COUNT(*)::int AS completed FROM evidence_records WHERE user_id=$1`,[s.userId]);
+        const active=await client.query(`
+          SELECT id,domain,experience_level,current_step,selected_question_count,expires_at,target_role
+          FROM assessment_sessions
+          WHERE user_id=$1 AND status='IN_PROGRESS'
+          ORDER BY started_at DESC LIMIT 1
+        `,[s.userId]);
         const evidence=states.rows.map((x:any)=>({
           id:`${x.slug}:${s.userId}`,
           capability:x.name,
@@ -30,7 +36,8 @@ export async function GET(){
         }));
         const demonstrated=states.rows.filter((x:any)=>x.state==='DEMONSTRATED').length;
         const developing=states.rows.filter((x:any)=>x.state==='DEVELOPING').length;
-        return {stats:{demonstrated,developing,completed:Number(completed.rows[0]?.completed||0)},evidence};
+        const a=active.rows[0];
+        return {stats:{demonstrated,developing,completed:Number(completed.rows[0]?.completed||0)},evidence,activeAssessment:a?{id:a.id,domain:a.domain,experienceLevel:a.experience_level,currentStep:Number(a.current_step||1),questionCount:Number(a.selected_question_count||0),expiresAt:a.expires_at,targetRole:a.target_role}:null};
       });
     })();
     return NextResponse.json(data,{headers:{'Cache-Control':'no-store'}});
