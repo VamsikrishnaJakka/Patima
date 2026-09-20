@@ -33,7 +33,6 @@ function Setup(){
  const minutes=useMemo(()=>duration(level,count),[level,count]);
  const start=async()=>{
   setLoading(true);setError('');
-  if(document.fullscreenEnabled) await document.documentElement.requestFullscreen().catch(()=>{});
   try{
    const res=await fetch('/api/assessment/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,experienceLevel:level,questionCount:count})});
    const data=await res.json();
