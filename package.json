@@ -18,7 +18,8 @@
     "test:evidence-coach": "tsx tests/evidence_coach.test.ts",
     "setup:local": "node scripts/setup-local.mjs",
     "test:security": "tsx tests/verification_security_gate.ts",
-    "test:all-assessments": "tsx tests/all_assessments_integrity_gate.ts"
+    "test:all-assessments": "tsx tests/all_assessments_integrity_gate.ts",
+    "test:assessment-lifecycle": "tsx tests/assessment_lifecycle_gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
