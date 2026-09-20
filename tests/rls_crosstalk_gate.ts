@@ -62,7 +62,7 @@ async function run(){
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   assert.equal(r.rows[0]?.user_id,EMPLOYER);
   assert.equal(r.rows[0]?.employer_id,EMPLOYER_ACCOUNT);
- });
+ },{employerAccountId:EMPLOYER_ACCOUNT});
  await withSessionClient(CANDIDATE,async(client)=>{
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   assert.equal(r.rows[0]?.user_id,CANDIDATE);
@@ -91,7 +91,7 @@ async function run(){
   await client.query("SELECT pg_sleep($1)",[index%2===0?0.02:0.01]);
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   return {expected:userId,actual:r.rows[0]?.user_id,employer:r.rows[0]?.employer_id};
- })));
+ },{employerAccountId:userId===EMPLOYER?EMPLOYER_ACCOUNT:undefined})));
  for(const item of burst){
   assert.equal(item.actual,item.expected,"Concurrent user context crossed between pooled connections.");
   assert.equal(item.employer,item.expected===EMPLOYER?EMPLOYER_ACCOUNT:"","Concurrent employer context crossed between pooled connections.");
