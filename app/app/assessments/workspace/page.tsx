@@ -248,7 +248,7 @@ function Workspace(){
    </section>
   </main>
   <footer className="flex h-14 items-center justify-between border-t border-white/10 bg-[#081018] px-4">
-   <div className="flex min-w-0 items-center gap-4 text-[11px] text-slate-600"><span>{keystrokes} editor changes</span><span>{saveState==='saving'?'Saving…':saveState==='error'?'Save failed':'Draft saved'}</span>{events.length>0&&<span className="text-amber-400">{events.length} integrity event(s)</span>}</div>
+   <div className="flex min-w-0 items-center gap-4 text-[11px] text-slate-600"><span>{saveState==='saving'?'Saving…':saveState==='error'?'Save failed':'Draft saved'}</span></div>
    <div className="flex items-center gap-2">
     <button type="button" onClick={()=>void run()} disabled={running||!answer.trim()} title="Execute the current answer without progressing" className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-40">{running?'Running…':<>Run <span className="ml-1 text-slate-600">Ctrl+Enter</span></>}</button>
     <button type="button" onClick={()=>void runTests()} disabled={testing||!answer.trim()} title="Run all visible/public tests" className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 hover:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-40">{testing?'Testing…':<>Run Tests <span className="ml-1 text-emerald-500/60">Ctrl+Shift+Enter</span></>}</button>
