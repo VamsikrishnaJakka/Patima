@@ -18,7 +18,7 @@ function Workspace(){
  const[state,setState]=useState<State|null>(null);
  const[answer,setAnswer]=useState('');
  const[schema,setSchema]=useState<any|null>(null);
- const[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[testing,setTesting]=useState(false),[submitting,setSubmitting]=useState(false),[skipping,setSkipping]=useState(false);
+ const[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[testing,setTesting]=useState(false),[submitting,setSubmitting]=useState(false),[skipping,setSkipping]=useState(false),[finishPrompt,setFinishPrompt]=useState<'SUBMIT'|'SKIP'|null>(null);
  const[error,setError]=useState('');
  const[integrityNotice,setIntegrityNotice]=useState('');
  const[seconds,setSeconds]=useState<number|null>(null);
@@ -86,18 +86,19 @@ function Workspace(){
 
  const language=useMemo(()=>state?.assessment?.slug?.startsWith('python')?'python':state?.assessment?.slug?.startsWith('java')?'java':'sql',[state?.assessment?.slug]);
 
- const loadSchema=useCallback(async()=>{
-  if(!state?.question)return;
-  const key='patima:schema:'+state.question.variantId;
+ const loadSchema=useCallback(async(variantId?:string)=>{
+  const activeVariantId=variantId||state?.question?.variantId;
+  if(!activeVariantId)return;
+  const key='patima:schema:'+activeVariantId;
   try{
    const cached=sessionStorage.getItem(key);
    if(cached){setSchema(JSON.parse(cached));return;}
   }catch{}
   try{
-   const r=await fetch('/api/assessments/workspace/schema?sessionId='+encodeURIComponent(sessionId)+'&variantId='+encodeURIComponent(state.question.variantId),{cache:'no-store'});
+   const r=await fetch('/api/assessments/workspace/schema?sessionId='+encodeURIComponent(sessionId)+'&variantId='+encodeURIComponent(activeVariantId),{cache:'no-store'});
    if(r.ok){const data=await r.json();setSchema(data);try{sessionStorage.setItem(key,JSON.stringify(data));}catch{}}
   }catch{}
- },[sessionId,state?.question]);
+ },[sessionId,state?.question?.variantId]);
 
  useEffect(()=>{void loadSchema()},[loadSchema]);
 
@@ -121,13 +122,12 @@ function Workspace(){
 
  async function skip(){
   if(!state?.question||submitting||skipping)return;
-  if(!window.confirm('Skip this question? You can continue to the next question.'))return;
   setSkipping(true);setError('');
   try{
    const r=await fetch('/api/assessments/skip-step',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question.variantId})});
    const data=await r.json();if(!r.ok)throw new Error(data.message||data.error||'Unable to skip question');
    if(data.status==='COMPLETED'){setState({...state,closed:true,status:'VERIFIED',question:undefined});return;}
-   setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setRunResult(null);setTestResult(null);setSchema(null);setConsoleTab('output');void loadSchema();
+   setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setRunResult(null);setTestResult(null);setSchema(null);setConsoleTab('output');void loadSchema(data.nextQuestion.variantId);
   }catch(e){setError(e instanceof Error?e.message:'Unable to skip question')}finally{setSkipping(false)}
  }
 
@@ -143,13 +143,13 @@ function Workspace(){
    const data=await r.json();if(!r.ok){const report=data.report;const failed=report?.firstFailingTestCase;const detail=report?('Verification: '+report.verdict+' · Public '+report.publicTestsPassed+'/'+report.publicTestsTotal+' · Hidden '+report.hiddenTestsPassed+'/'+report.hiddenTestsTotal+(failed?.name?' · Failed: '+failed.name:'')+(failed?.errorMessage?' · '+failed.errorMessage:'')):'';throw new Error((data.message||data.error||'Unable to submit answer')+(detail?' — '+detail:''));}
    sessionStorage.removeItem('patima:draft:'+sessionId);
    if(data.status==='COMPLETED'){setState({...state,closed:true,status:'VERIFIED',question:undefined});if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});return}
-   setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setKeystrokes(0);setRunResult(null);setTestResult(null);setSchema(null);setConsoleTab('output');void loadSchema();
+   setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setKeystrokes(0);setRunResult(null);setTestResult(null);setSchema(null);setConsoleTab('output');void loadSchema(data.nextQuestion.variantId);
   }catch(e){setError(e instanceof Error?e.message:'Unable to submit answer')}finally{setSubmitting(false)}
  }
 
  if(loading)return <div className="min-h-screen bg-[#050a0f] text-slate-100 p-4"><p className="text-sm text-slate-400">Preparing secure assessment workspace…</p></div>;
  if(error&&!state)return <div className="min-h-screen bg-[#050a0f] p-6 text-rose-300">{error}</div>;
- if(state?.closed){const completed=state.status==='SUBMITTED'||state.status==='VERIFIED'||state.status==='COMPLETED';const expired=state.status==='EXPIRED';return <div className="min-h-screen bg-[#050a0f] p-6 text-slate-100"><div className="mx-auto max-w-3xl"><p className={'text-xs uppercase tracking-widest '+(completed?'text-emerald-300':expired?'text-amber-300':'text-rose-300')}>{completed?'Assessment complete':expired?'Assessment expired':'Assessment unavailable'}</p><h1 className="mt-2 text-3xl font-semibold">{state.assessment?.title||'Assessment'}</h1><div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-6"><p className="text-sm leading-7 text-slate-400">{completed?'Your responses have been verified and recorded on the server.':expired?'The server-authoritative assessment timer expired before the session could be resumed.':'This assessment session is no longer active.'}</p><button className="btn-primary mt-5" onClick={()=>router.push(completed?'/app/results':'/app/assessments')}>{completed?'View result →':'Back to assessments →'}</button></div></div></div>}
+ if(state?.closed){const completed=state.status==='SUBMITTED'||state.status==='VERIFIED'||state.status==='COMPLETED';const expired=state.status==='EXPIRED';return <div className="min-h-screen bg-[#050a0f] p-6 text-slate-100"><div className="mx-auto max-w-3xl"><p className={'text-xs uppercase tracking-widest '+(completed?'text-emerald-300':expired?'text-amber-300':'text-rose-300')}>{completed?'Assessment complete':expired?'Assessment expired':'Assessment unavailable'}</p><h1 className="mt-2 text-3xl font-semibold">{state.assessment?.title||'Assessment'}</h1><div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-6"><p className="text-sm leading-7 text-slate-400">{completed?'Your responses have been verified and recorded on the server.':expired?'The server-authoritative assessment timer expired before the session could be resumed.':'This assessment session is no longer active.'}</p><button className="btn-primary mt-5" onClick={()=>router.push(completed?'/app/results?sessionId='+encodeURIComponent(sessionId):'/app/assessments')}>{completed?'View result →':'Back to assessments →'}</button></div></div></div>}
 
  const q=state?.question;if(!q)return null;
  const publicPassed=testResult?.publicTestsTotal?testResult.publicTestsPassed===testResult.publicTestsTotal:false;
@@ -179,7 +179,11 @@ function Workspace(){
       <div className="flex justify-between gap-4"><span className="text-slate-500">Question type</span><span className="text-slate-200">{q.questionType||'SQL coding'}</span></div>
      </div>
      <div className="mt-4 rounded-lg bg-white/[0.03] px-3 py-3 text-xs leading-5 text-slate-400">
-      <span className="font-medium text-slate-300">How to solve:</span> write one SQL answer using the table and columns below. Use <b className="text-slate-200">Run</b> to inspect your query, <b className="text-slate-200">Run Tests</b> to check visible cases, and <b className="text-slate-200">Submit Step</b> when ready.
+      {q.questionType==='CODING'
+       ? <><span className="font-medium text-slate-300">How to solve:</span> write the SQL answer using the table and columns below. Use <b className="text-slate-200">Run</b> to inspect your query, <b className="text-slate-200">Run Tests</b> to check the public cases, then <b className="text-slate-200">Submit Step</b>.</>
+       : q.responseMode==='MCQ'
+       ? <><span className="font-medium text-slate-300">How to answer:</span> read the question above, choose the single answer that directly answers it, then select <b className="text-slate-200">Submit Step</b>.</>
+       : <><span className="font-medium text-slate-300">How to answer:</span> explain the concept in your own words using the requested example or reasoning, then select <b className="text-slate-200">Submit Step</b>.</>}
      </div>
     </div>
 
@@ -271,10 +275,21 @@ function Workspace(){
    <div className="flex items-center gap-2">
     {q.questionType!=='THEORY'&&<><button type="button" onClick={()=>void run()} disabled={running||!answer.trim()} title="Execute the current answer without progressing" className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-40">{running?'Running…':<>Run <span className="ml-1 text-slate-600">Ctrl+Enter</span></>}</button>
     <button type="button" onClick={()=>void runTests()} disabled={testing||!answer.trim()} title="Run all visible/public tests" className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 hover:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-40">{testing?'Testing…':<>Run Tests <span className="ml-1 text-emerald-500/60">Ctrl+Shift+Enter</span></>}</button></>}
-    <button type="button" onClick={()=>void skip()} disabled={submitting||skipping||seconds===0} className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-40">{skipping?'Skipping…':'Skip'}</button>
-    <button type="button" onClick={()=>void submit()} disabled={submitting||skipping||!answer.trim()||seconds===0} title="Submit this response and continue to the next question" className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">{submitting?'Submitting…':'Submit Step →'}</button>
+    <button type="button" onClick={()=>q.stepIndex===q.totalQuestions?setFinishPrompt('SKIP'):void skip()} disabled={submitting||skipping||seconds===0} className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-40">{skipping?'Skipping…':'Skip'}</button>
+    <button type="button" onClick={()=>q.stepIndex===q.totalQuestions?setFinishPrompt('SUBMIT'):void submit()} disabled={submitting||skipping||!answer.trim()||seconds===0} title="Submit this response and continue to the next question" className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">{submitting?'Submitting…':q.stepIndex===q.totalQuestions?'Submit Test →':'Submit Step →'}</button>
    </div>
   </footer>
+  {finishPrompt&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+   <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b141d] p-6 shadow-2xl">
+    <div className="text-xs font-semibold uppercase tracking-widest text-emerald-300">Assessment complete</div>
+    <h2 className="mt-2 text-xl font-semibold text-white">Submit this test?</h2>
+    <p className="mt-3 text-sm leading-6 text-slate-400">{finishPrompt==='SKIP'?'You skipped the last question. You can submit the test now or continue and answer/review the final question.':'You reached the last question. You can submit the test now or continue reviewing your final response.'}</p>
+    <div className="mt-6 flex justify-end gap-2">
+     <button type="button" onClick={()=>setFinishPrompt(null)} className="rounded-md border border-white/10 px-4 py-2 text-sm text-slate-300">Continue</button>
+     <button type="button" onClick={()=>{const action=finishPrompt;setFinishPrompt(null);if(action==='SKIP')void skip();else void submit();}} className="btn-primary">{finishPrompt==='SKIP'?'Submit Test':'Submit Test'} →</button>
+    </div>
+   </div>
+  </div>}
  </div>;
 }
 
