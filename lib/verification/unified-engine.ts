@@ -62,4 +62,4 @@ function findDiff(actual:ExecutedQueryResult,expected:ExecutedQueryResult,orderS
  return null;
 }
 function advice(d:DiffLocation,a:ExecutedQueryResult,e:ExecutedQueryResult){if(d.columnName==='[ROW_COUNT]')return `Returned ${a.rows.length} rows, expected ${e.rows.length}. Check WHERE filters or GROUP BY granularity.`;if(d.columnName==='[COLUMNS]')return 'The selected columns do not match the expected result contract.';return `Mismatch at row ${d.rowIndex}, column '${d.columnName}'. Check filtering, ordering, aggregation, or window boundaries.`;}
-function detectClauses(sql:string){return ['SELECT','FROM','WHERE','GROUP BY','HAVING','ORDER BY','JOIN','OVER','PARTITION BY'].filter(x=>new RegExp('\\\\b'+x.replace(' ','\\\\s+')+'\\\\b','i').test(sql));}
+function detectClauses(sql:string){return ['SELECT','FROM','WHERE','GROUP BY','HAVING','ORDER BY','JOIN','OVER','PARTITION BY'].filter(x=>new RegExp('\\b'+x.replace(' ','\\s+')+'\\b','i').test(sql));}
