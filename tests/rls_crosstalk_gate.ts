@@ -34,6 +34,7 @@ async function prepareRlsRole(){
    if(existing.rows[0].rolsuper||existing.rows[0].rolbypassrls){
     throw new Error("Existing RLS test role is privileged; refuse to run isolation gate.");
    }
+   await client.query("GRANT "+TEST_RLS_ROLE+" TO CURRENT_USER");
    return {role:TEST_RLS_ROLE};
   }
 
