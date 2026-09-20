@@ -10,7 +10,7 @@ UPDATE question_variants v
 SET
   question_type='THEORY',
   starter_code=NULL,
-  scenario_entity=NULL,
+  scenario_entity='customer_orders',
   expected_time_complexity=NULL,
   expected_space_complexity=NULL,
   reference_explanation=NULL,
