@@ -55,9 +55,11 @@ export async function executeUnifiedEngine(req:{mode:EngineMode;sql:string;varia
 function findDiff(actual:ExecutedQueryResult,expected:ExecutedQueryResult,orderSensitive:boolean):DiffLocation|null{
  if(actual.columns.map(x=>x.name).join('|')!==expected.columns.map(x=>x.name).join('|'))return{rowIndex:1,columnName:'[COLUMNS]',expectedValue:expected.columns.map(x=>x.name).join(', '),actualValue:actual.columns.map(x=>x.name).join(', ')};
  if(actual.rows.length!==expected.rows.length)return{rowIndex:Math.min(actual.rows.length,expected.rows.length)+1,columnName:'[ROW_COUNT]',expectedValue:`${expected.rows.length} rows`,actualValue:`${actual.rows.length} rows`};
- const rows=orderSensitive?actual.rows.map((r,i)=>[r,i] as const):actual.rows;
+ const rows=orderSensitive?actual.rows.map((r)=>r):actual.rows;
  for(let i=0;i<expected.rows.length;i++)for(const col of expected.columns){
-  const a=String((rows[i]?.[col.name])??'NULL'),e=String(expected.rows[i]?.[col.name]??'NULL');if(a!==e)return{rowIndex:i+1,columnName:col.name,expectedValue:e,actualValue:a};
+  const actualRow=rows[i] as Record<string,unknown>|undefined;
+  const expectedRow=expected.rows[i] as Record<string,unknown>|undefined;
+  const a=String((actualRow?.[col.name])??'NULL'),e=String((expectedRow?.[col.name])??'NULL');if(a!==e)return{rowIndex:i+1,columnName:col.name,expectedValue:e,actualValue:a};
  }
  return null;
 }
