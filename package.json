@@ -20,7 +20,9 @@
     "test:security": "tsx tests/verification_security_gate.ts",
     "test:all-assessments": "tsx tests/all_assessments_integrity_gate.ts",
     "test:assessment-lifecycle": "tsx tests/assessment_lifecycle_gate.ts",
-    "test:db-security": "tsx tests/database_security_gate.ts"
+    "test:db-security": "tsx tests/database_security_gate.ts",
+    "test:error-shielding": "tsx tests/error_shielding_gate.ts",
+    "test:session-start-race": "tsx tests/session_start_race_gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
