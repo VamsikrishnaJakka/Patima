@@ -37,7 +37,7 @@ async function run(){
     console.log('PASS: consent mutation is serialized and cannot transition an already-resolved request.');
 
     console.log('[GATE 6] Assessment submission transitions lock the authoritative session...');
-    const submit=readFileSync(repoRoot+'/app/assessments/submit-step/route.ts','utf8');
+    const submit=readFileSync(repoRoot+'/app/api/assessments/submit-step/route.ts','utf8');
     assert.match(submit,/FOR UPDATE OF ar/);
     const allocator=readFileSync(repoRoot+'/lib/assessment/allocator.ts','utf8');
     assert.match(allocator,/FOR UPDATE/);
