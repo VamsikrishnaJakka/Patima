@@ -30,8 +30,13 @@ export async function GET(request:Request){
         await conn.run(`SET threads=1`);
         await conn.run(`SET memory_limit='128MB'`);
         await conn.run(fixture_ddl);
-        const desc=await conn.runAndReadAll(`DESCRIBE ${String(scenario_entity).replace(/[^A-Za-z0-9_]/g,'')}`);
-        const preview=await conn.runAndReadAll(`SELECT * FROM ${String(scenario_entity).replace(/[^A-Za-z0-9_]/g,'')} LIMIT 8`);
+        const requestedTable=String(scenario_entity||'').replace(/[^A-Za-z0-9_]/g,'');
+        const tables=await conn.runAndReadAll(`SELECT table_name FROM information_schema.tables WHERE table_schema='main' ORDER BY table_name`);
+        const available=(tables.getRowObjects() as any[]).map(x=>String(x.table_name));
+        const tableName=available.includes(requestedTable)?requestedTable:(available.length===1?available[0]:available.find(x=>x==='customer_orders')||available[0]);
+        if(!tableName) throw new Error('FIXTURE_CONTAINS_NO_TABLE');
+        const desc=await conn.runAndReadAll(`DESCRIBE ${tableName}`);
+        const preview=await conn.runAndReadAll(`SELECT * FROM ${tableName} LIMIT 8`);
         return NextResponse.json({
           tableName,
           columns:desc.getRowObjects().map((x:any)=>({name:String(x.column_name),type:String(x.column_type)})),
