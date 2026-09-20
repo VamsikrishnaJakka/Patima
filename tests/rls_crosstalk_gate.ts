@@ -14,8 +14,9 @@ function loadLocalEnv(){
 }
 loadLocalEnv();
 
-const {runtimePool,withSessionClient}=await import("../lib/db");
- 
+let runtimePool:any;
+let withSessionClient:any;
+
 const CANDIDATE="c9a01f42-8812-4211-b0e1-482910482910";
 const EMPLOYER="b0000000-0000-0000-0000-000000000002";
 const EMPLOYER_ACCOUNT="e0000000-0000-0000-0000-000000000001";
@@ -70,6 +71,9 @@ async function withRlsContext<T>(role:string,userId:string,employerAccountId:str
 
 
 async function run(){
+ const db=await import("../lib/db");
+ runtimePool=db.runtimePool;
+ withSessionClient=db.withSessionClient;
  if(!process.env.DATABASE_URL)throw new Error("DATABASE_URL is required for the RLS cross-talk gate.");
 
  console.log("================================================================");
