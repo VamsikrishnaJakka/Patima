@@ -3,6 +3,9 @@
 -- ordering, simple ranking, and deterministic row selection. They are not
 -- advanced window-function puzzles.
 
+ALTER TABLE question_variants
+  ADD COLUMN IF NOT EXISTS verification_policy JSONB NOT NULL DEFAULT '{}'::jsonb;
+
 WITH target AS (
   SELECT v.id,f.concept_tag
   FROM question_variants v
