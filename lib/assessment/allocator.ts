@@ -62,7 +62,7 @@ export async function allocateNextQuestion(
 
   // 2. Refresh / Resume Check: If an active reservation exists and no submission was sent, re-serve Question
   const activeRes = await client.query(`
-    SELECT v.id, v.difficulty_score, v.prompt_markdown, v.scenario_entity, v.fixture_ddl, v.fixture_preview,
+    SELECT v.id, v.difficulty_score, v.prompt_markdown, v.scenario_entity, v.fixture_ddl, v.fixture_preview, v.question_type, v.public_tests, v.hidden_tests,
            v.expected_time_complexity, v.expected_space_complexity, v.question_type, v.concept_rubric,
            l.draft_response
     FROM active_question_reservations r
@@ -73,7 +73,11 @@ export async function allocateNextQuestion(
 
   if (activeRes.rows.length > 0 && !req.submittedCode) {
     const active = activeRes.rows[0];
-    return {
+    const isExecutable = active.question_type === 'CODING'
+      && Array.isArray(active.public_tests) && active.public_tests.length > 0
+      && Array.isArray(active.hidden_tests) && active.hidden_tests.length > 0;
+    if (isExecutable) {
+      return {
       variantId: active.id,
       stepIndex: session.current_step,
       difficulty: Number(active.difficulty_score),
@@ -88,7 +92,15 @@ export async function allocateNextQuestion(
       expectedSpaceComplexity: active.expected_space_complexity,
       questionType: active.question_type,
       conceptRubric: active.concept_rubric,
-    };
+      };
+    }
+    await client.query(`DELETE FROM active_question_reservations WHERE session_id = $1`, [session.id]);
+    await client.query(`
+      UPDATE assessment_adaptive_logs
+      SET candidate_response = NULL, draft_response = NULL, is_correct = NULL,
+          verification_status = NULL, verification_output = NULL, execution_digest = NULL
+      WHERE session_id = $1 AND step_index = $2;
+    `, [session.id, session.current_step]);
   }
 
   // 3. Handle Completed Question Submission (Idempotent Step Advancement)
@@ -197,6 +209,9 @@ export async function allocateNextQuestion(
     WHERE f.domain = $1
       AND v.experience_level = $2
       AND v.is_active = TRUE
+      AND v.question_type = 'CODING'
+      AND jsonb_array_length(COALESCE(v.public_tests, '[]'::jsonb)) > 0
+      AND jsonb_array_length(COALESCE(v.hidden_tests, '[]'::jsonb)) > 0
       AND v.difficulty_score BETWEEN $6 AND $7
       -- Invariant 1: No duplicate family in this session
       AND v.family_id NOT IN (
@@ -247,7 +262,17 @@ export async function allocateNextQuestion(
     INSERT INTO assessment_adaptive_logs (
       session_id, step_index, variant_id, family_id, difficulty_presented, computed_theta_next
     ) VALUES ($1, $2, $3, $4, $5, $5)
-    ON CONFLICT (session_id, step_index) DO NOTHING;
+    ON CONFLICT (session_id, step_index) DO UPDATE SET
+      variant_id = EXCLUDED.variant_id,
+      family_id = EXCLUDED.family_id,
+      difficulty_presented = EXCLUDED.difficulty_presented,
+      computed_theta_next = EXCLUDED.computed_theta_next,
+      candidate_response = NULL,
+      draft_response = NULL,
+      is_correct = NULL,
+      verification_status = NULL,
+      verification_output = NULL,
+      execution_digest = NULL;
   `, [session.id, session.current_step, selected.id, selected.family_id, targetTheta]);
 
   // Update exposure count
