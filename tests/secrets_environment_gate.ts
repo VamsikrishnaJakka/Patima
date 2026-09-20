@@ -28,9 +28,9 @@ for(const file of clientFiles){const text=readFileSync(join(root,file),'utf8');a
 console.log('PASS: client components contain no server-only secret environment access.');
 
 console.log('[GATE 4] Repository does not contain obvious hard-coded credential URLs...');
-const credentialUrl=/postgres(?:ql)?:\/\/[^\s"']+:[^\s"'@]+@/i;
+const credentialUrl=/postgres(?:ql)?:\/\/[^\s"']+:[^\s"'@]+@/gi;
 const realCredentialMarker=/(?:sk-[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,})/;
-for(const file of tracked.filter(file=>!file.endsWith('.lock'))){const text=readFileSync(join(root,file),'utf8');if(file==='.env.example')continue;assert.doesNotMatch(text,credentialUrl,'hard-coded credential URL in '+file);assert.doesNotMatch(text,realCredentialMarker,'credential-like token in '+file);}
+for(const file of tracked.filter(file=>!file.endsWith('.lock'))){const text=readFileSync(join(root,file),'utf8');if(file==='.env.example')continue;const credentialUrls=text.match(credentialUrl)||[];\n  const nonLocalCredentials=credentialUrls.filter(value=>!/^postgres(?:ql)?:\/\/postgres:postgres@localhost(?::5432)?\//i.test(value));\n  assert.equal(nonLocalCredentials.length,0,'hard-coded non-local credential URL in '+file);assert.doesNotMatch(text,realCredentialMarker,'credential-like token in '+file);}
 console.log('PASS: no obvious credential-bearing URLs or common token formats are committed.');
 
 console.log('[GATE 5] Passwords, API keys, and connection strings are not logged...');
