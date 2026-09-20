@@ -39,7 +39,7 @@ export async function executeUnifiedEngine(req:{mode:EngineMode;sql:string;varia
    await c.runAndReadAll('SET threads=1');await c.runAndReadAll("SET memory_limit='128MB'");await c.runAndReadAll(tc.fixtureDdl);
    const fixtureTable=await resolveFixtureTable(c,variant.scenario_entity); const input=await executeWithDuckDbMetadata(c,`SELECT * FROM ${quoteIdent(fixtureTable)} LIMIT 8`);
    const actual=await executeWithSettledInterrupt(c,sql,2000);
-   const actualRows=(actual.getRowObjects() as any[]).map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.toLowerCase(),typeof v==='bigint'?Number(v):v instanceof Date?v.toISOString():v])));
+   const actualRows=(typeof actual.getRowObjectsJson==='function'?actual.getRowObjectsJson():actual.getRowObjects()).map((r:any)=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.toLowerCase(),v])));
    const meta=await c.runAndReadAll('DESCRIBE '+sql.trim().replace(/;+$/,''));
    const actualResult:ExecutedQueryResult={rows:actualRows,columns:(meta.getRowObjects() as any[]).map(x=>({name:String(x.column_name).toLowerCase(),type:String(x.column_type).toUpperCase()}))};
    const ms=Number((performance.now()-caseStart).toFixed(2));
