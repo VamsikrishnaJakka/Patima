@@ -8,9 +8,9 @@ async function run(){
   const client=await directPool.connect();
   try{
     console.log('[GATE 1] Evidence-audit INSERT policy is bound to authenticated employer context...');
-    const p=await client.query(`SELECT pg_get_policydef(oid) AS definition FROM pg_policy WHERE polname='p_access_events_insert_employer' AND polrelid='evidence_access_events'::regclass`);
+    const p=await client.query(`SELECT qual,with_check FROM pg_policies WHERE policyname='p_access_events_insert_employer' AND tablename='evidence_access_events'`);
     assert.equal(p.rows.length,1,'Evidence audit INSERT policy is missing.');
-    const def=p.rows[0].definition;
+    const def=`${p.rows[0].qual||''}\n${p.rows[0].with_check||''}`;
     assert.match(def,/actor_user_id/);
     assert.match(def,/app\.current_user_id/);
     assert.match(def,/employer_account_id/);
