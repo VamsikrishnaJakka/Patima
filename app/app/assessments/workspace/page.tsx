@@ -7,7 +7,7 @@ import {useRouter,useSearchParams} from 'next/navigation';
 type FixturePreview={columns:string[];rows:(string|number|null)[][]};
 type Question={
   variantId:string;stepIndex:number;promptMarkdown:string;scenarioEntity:string;fixtureDdl:string;
-  fixturePreview?:FixturePreview;totalQuestions:number;remainingTimeSeconds:number;
+  fixturePreview?:FixturePreview;totalQuestions:number;remainingTimeSeconds:number;draftResponse?:string;expectedTimeComplexity?:string|null;expectedSpaceComplexity?:string|null;questionType?:string|null;conceptRubric?:unknown;
 };
 type State={closed:boolean;status?:string;assessment?:{slug:string;title:string;description:string};question?:Question;session?:{experience_level:string;current_step:number;expires_at:string}};
 type RunResult={verdict:string;allPassed:boolean;executionTimeMs:number;peakMemoryKb:number|null;output?:string;expectedOutput?:string;errorMessage?:string|null;testCases?:any[];publicTestsPassed?:number;publicTestsTotal?:number;runtime?:{language:string;engineVersion:string;architecture:string;vCpuLimit:number;memoryLimitMb:number;wallClockTimeoutMs:number;networkEnabled:boolean};environmentDigest?:string};
@@ -26,6 +26,7 @@ function Workspace(){
  const[runResult,setRunResult]=useState<RunResult|null>(null);
  const[testResult,setTestResult]=useState<RunResult|null>(null);
  const[events,setEvents]=useState<string[]>([]);
+ const[saveState,setSaveState]=useState<'saved'|'saving'|'error'>('saved');
 
  const load=useCallback(async()=>{
   setLoading(true);setError('');
@@ -34,8 +35,7 @@ function Workspace(){
    const data=await res.json();
    if(!res.ok)throw new Error(data.error||'Unable to load assessment');
    setState(data);setSeconds(data.question?.remainingTimeSeconds??null);setStartedAt(Date.now());
-   const draft=sessionStorage.getItem('patima:draft:'+sessionId);
-   if(draft) setAnswer(draft);
+   setAnswer(data.question?.draftResponse||'');
   }catch(e){setError(e instanceof Error?e.message:'Unable to load assessment')}
   finally{setLoading(false)}
  },[sessionId]);
@@ -70,9 +70,17 @@ function Workspace(){
  });
 
  useEffect(()=>{
-  const t=window.setTimeout(()=>sessionStorage.setItem('patima:draft:'+sessionId,answer),5000);
+  if(!state?.question)return;
+  const t=window.setTimeout(async()=>{
+   if(!answer.trim())return;
+   setSaveState('saving');
+   try{
+    const r=await fetch('/api/assessment/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question!.variantId,code:answer})});
+    setSaveState(r.ok?'saved':'error');
+   }catch{setSaveState('error')}
+  },1200);
   return()=>window.clearTimeout(t);
- },[answer,sessionId]);
+ },[answer,sessionId,state?.question?.variantId]);
 
  const language=useMemo(()=>state?.assessment?.slug?.startsWith('python')?'python':state?.assessment?.slug?.startsWith('java')?'java':'sql',[state?.assessment?.slug]);
 
@@ -135,7 +143,7 @@ function Workspace(){
  const previewColumns=q.fixturePreview?.columns||[];
  return <div className="h-screen overflow-hidden bg-[#050a0f] text-slate-100">
   <header className="flex h-12 items-center justify-between border-b border-white/10 bg-[#081018] px-4">
-   <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={async()=>{if(!window.confirm('Exit this assessment? Your current answer is autosaved locally, but this assessment will not be submitted.'))return;try{await fetch('/api/assessment/abandon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId})})}catch{}router.push('/app/assessments')}} className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200">← Exit</button><span className="font-semibold tracking-tight">PATIMA</span><span className="text-xs text-slate-500">{state.assessment?.title}</span><span className="text-xs text-slate-600">·</span><span className="text-xs text-slate-500">Question {q.stepIndex}/{q.totalQuestions}</span></div>
+   <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={()=>{if(!window.confirm('Leave this assessment? Your progress and answer will remain saved. The assessment timer will continue running.'))return;router.push('/app')}} className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200">← Exit</button><span className="font-semibold tracking-tight">PATIMA</span><span className="text-xs text-slate-500">{state.assessment?.title}</span><span className="text-xs text-slate-600">·</span><span className="text-xs text-slate-500">Question {q.stepIndex}/{q.totalQuestions}</span></div>
    <div className="flex items-center gap-5 text-xs"><span className="text-slate-600">{language.toUpperCase()}</span><span className={seconds!==null&&seconds<180?'text-amber-300':'text-slate-400'}>{seconds!==null?Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'--:--'}</span></div>
   </header>
   <main className="grid h-[calc(100vh-6rem)] grid-cols-[34%_66%]">
@@ -167,7 +175,7 @@ function Workspace(){
    </section>
   </main>
   <footer className="flex h-14 items-center justify-between border-t border-white/10 bg-[#081018] px-4">
-   <div className="flex min-w-0 items-center gap-4 text-[11px] text-slate-600"><span>{keystrokes} editor changes</span><span>Autosaved locally</span>{events.length>0&&<span className="text-amber-400">{events.length} integrity event(s)</span>}</div>
+   <div className="flex min-w-0 items-center gap-4 text-[11px] text-slate-600"><span>{keystrokes} editor changes</span><span>{saveState==='saving'?'Saving…':saveState==='error'?'Save failed':'Draft saved'}</span>{events.length>0&&<span className="text-amber-400">{events.length} integrity event(s)</span>}</div>
    <div className="flex items-center gap-2">
     <button type="button" onClick={()=>void run()} disabled={running||!answer.trim()} title="Execute the current answer without progressing" className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-40">{running?'Running…':<>Run <span className="ml-1 text-slate-600">Ctrl+Enter</span></>}</button>
     <button type="button" onClick={()=>void runTests()} disabled={testing||!answer.trim()} title="Run all visible/public tests" className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 hover:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-40">{testing?'Testing…':<>Run Tests <span className="ml-1 text-emerald-500/60">Ctrl+Shift+Enter</span></>}</button>
