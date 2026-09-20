@@ -1,18 +1,49 @@
 'use client';
-import {Suspense,useEffect,useRef,useState} from 'react';
+
+import Editor from '@monaco-editor/react';
+import {Suspense,useCallback,useEffect,useMemo,useState} from 'react';
 import {useRouter,useSearchParams} from 'next/navigation';
 
 type FixturePreview={columns:string[];rows:(string|number|null)[][]};
-type Question={variantId:string;stepIndex:number;promptMarkdown:string;scenarioEntity:string;fixtureDdl:string;fixturePreview?:FixturePreview;totalQuestions:number;remainingTimeSeconds:number};
+type Question={
+  variantId:string;stepIndex:number;promptMarkdown:string;scenarioEntity:string;fixtureDdl:string;
+  fixturePreview?:FixturePreview;totalQuestions:number;remainingTimeSeconds:number;
+};
 type State={closed:boolean;status?:string;assessment?:{slug:string;title:string;description:string};question?:Question;session?:{experience_level:string;current_step:number;expires_at:string}};
+type RunResult={verdict:string;allPassed:boolean;executionTimeMs:number;peakMemoryKb:number|null;output?:string;expectedOutput?:string;errorMessage?:string|null;testCases?:any[];publicTestsPassed?:number;publicTestsTotal?:number;runtime?:{language:string;engineVersion:string;architecture:string;vCpuLimit:number;memoryLimitMb:number;wallClockTimeoutMs:number;networkEnabled:boolean};environmentDigest?:string};
 
 function Workspace(){
  const params=useSearchParams(),router=useRouter(),sessionId=params.get('session')||'';
- const[state,setState]=useState<State|null>(null); const[answer,setAnswer]=useState(''); const[showDataset,setShowDataset]=useState(false); const[loading,setLoading]=useState(true); const[submitting,setSubmitting]=useState(false); const[error,setError]=useState(''); const[startedAt,setStartedAt]=useState<number>(Date.now()); const[seconds,setSeconds]=useState<number|null>(null); const[keystrokes,setKeystrokes]=useState(0); const events=useRef<{type:string;at:string}[]>([]);
- const load=async()=>{setLoading(true);setError('');try{const res=await fetch(`/api/assessment/adaptive/session?id=${encodeURIComponent(sessionId)}`,{cache:'no-store'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Unable to load assessment');setState(data);setSeconds(data.question?.remainingTimeSeconds??null);setStartedAt(Date.now());}catch(e){setError(e instanceof Error?e.message:'Unable to load assessment')}finally{setLoading(false)}};
- useEffect(()=>{if(!sessionId){router.replace('/app/assessments');return}load()},[sessionId]);
+ const[state,setState]=useState<State|null>(null);
+ const[answer,setAnswer]=useState('');
+ const[schema,setSchema]=useState<any|null>(null);
+ const[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[testing,setTesting]=useState(false),[submitting,setSubmitting]=useState(false);
+ const[error,setError]=useState('');
+ const[seconds,setSeconds]=useState<number|null>(null);
+ const[startedAt,setStartedAt]=useState<number>(Date.now());
+ const[keystrokes,setKeystrokes]=useState(0);
+ const[consoleTab,setConsoleTab]=useState<'output'|'tests'|'environment'>('output');
+ const[runResult,setRunResult]=useState<RunResult|null>(null);
+ const[testResult,setTestResult]=useState<RunResult|null>(null);
+ const[events,setEvents]=useState<string[]>([]);
+
+ const load=useCallback(async()=>{
+  setLoading(true);setError('');
+  try{
+   const res=await fetch('/api/assessment/adaptive/session?id='+encodeURIComponent(sessionId),{cache:'no-store'});
+   const data=await res.json();
+   if(!res.ok)throw new Error(data.error||'Unable to load assessment');
+   setState(data);setSeconds(data.question?.remainingTimeSeconds??null);setStartedAt(Date.now());
+   const draft=sessionStorage.getItem('patima:draft:'+sessionId);
+   if(draft) setAnswer(draft);
+  }catch(e){setError(e instanceof Error?e.message:'Unable to load assessment')}
+  finally{setLoading(false)}
+ },[sessionId]);
+
+ useEffect(()=>{if(!sessionId){router.replace('/app/assessments');return}load()},[sessionId,load]);
+
  useEffect(()=>{
-  const violation=(reason:string)=>setError(`Integrity event recorded: ${reason}. Stay on the assessment screen.`);
+  const violation=(reason:string)=>{setEvents(v=>[...v.slice(-19),reason]);setError('Integrity event recorded: '+reason+'. Stay on the assessment screen.');};
   const onVisibility=()=>{if(document.hidden)violation('tab/window left')};
   const onBlur=()=>violation('assessment window lost focus');
   const onFullscreen=()=>{if(!document.fullscreenElement&&!state?.closed)violation('fullscreen exited')};
@@ -26,21 +57,116 @@ function Workspace(){
   document.addEventListener('copy',block);document.addEventListener('cut',block);document.addEventListener('paste',block);document.addEventListener('contextmenu',blockContext);document.addEventListener('keydown',key);
   return()=>{document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('blur',onBlur);document.removeEventListener('fullscreenchange',onFullscreen);document.removeEventListener('copy',block);document.removeEventListener('cut',block);document.removeEventListener('paste',block);document.removeEventListener('contextmenu',blockContext);document.removeEventListener('keydown',key)}
  },[state?.closed]);
+
  useEffect(()=>{if(seconds===null)return;const t=window.setInterval(()=>setSeconds(v=>v===null?null:Math.max(0,v-1)),1000);return()=>window.clearInterval(t)},[seconds!==null]);
- const submit=async()=>{if(!state?.question||!answer.trim()||submitting)return;setSubmitting(true);setError('');events.current.push({type:'SUBMIT',at:new Date().toISOString()});try{const res=await fetch('/api/assessments/submit-step',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question.variantId,submittedCode:answer,durationSeconds:Math.max(1,Math.round((Date.now()-startedAt)/1000))})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Unable to submit answer');if(data.status==='COMPLETED'){setState({...state,closed:true,status:'VERIFIED',question:undefined});if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});return}setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setKeystrokes(0);}catch(e){setError(e instanceof Error?e.message:'Unable to submit answer')}finally{setSubmitting(false)}};
- if(loading)return <div className="min-h-screen bg-[#071019] text-slate-100 p-4 sm:p-6"><div className="mx-auto max-w-6xl"><p className="eyebrow">ASSESSMENT WORKSPACE</p><h1 className="mt-2 text-2xl font-semibold">Preparing your next question…</h1></div></div>;
- if(error&&!state)return <div className="min-h-screen bg-[#071019] text-slate-100 p-4 sm:p-6"><div className="mx-auto max-w-3xl"><p className="panel p-6 text-sm text-rose-300">{error}</p></div></div>;
- if(state?.closed)return <div className="min-h-screen bg-[#071019] text-slate-100 p-4 sm:p-6"><div className="mx-auto max-w-3xl"><p className="eyebrow">ASSESSMENT COMPLETE</p><h1 className="mt-2 text-3xl font-semibold">{state.assessment?.title||'Assessment'}</h1><div className="panel mt-6 p-6"><p className="text-sm leading-7 text-slate-400">Your responses have been evaluated and the assessment evidence has been recorded on the server.</p><button className="btn-primary mt-5" onClick={()=>router.push('/app/results')}>View result →</button></div></div></div>;
- const q=state?.question; if(!q)return null;
- return <div className="min-h-screen bg-[#071019] text-slate-100 p-4 sm:p-6"><div className="mx-auto max-w-3xl">
-  <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">{state?.assessment?.title}</p><h1 className="mt-2 text-2xl font-semibold">Adaptive assessment</h1><p className="mt-1 text-sm text-slate-500">Question {q.stepIndex} of {q.totalQuestions}</p></div><div className="text-right text-xs text-slate-500">{seconds!==null&&<><div className={seconds<180?'text-amber-300':'text-slate-500'}>{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</div><div className="mt-1">remaining</div></>}</div></div>
-  <div className="mt-5 h-1 rounded bg-slate-800"><div className="h-full rounded bg-emerald-400" style={{width:`${Math.min(100,(q.stepIndex/q.totalQuestions)*100)}%`}}/></div>
-  <div className="panel mt-6 p-6"><p className="text-xs font-medium uppercase tracking-[0.14em] text-emerald-300">Your question</p><div className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-300">{q.promptMarkdown}</div>
-   <div className="mt-5 rounded-lg border border-white/10 bg-slate-950/40 p-4"><div className="flex items-center justify-between gap-4"><div><div className="text-xs uppercase tracking-[0.14em] text-slate-600">SQL dataset</div><div className="mt-2 text-sm text-slate-300">{q.scenarioEntity}</div></div><button type="button" onClick={()=>setShowDataset(v=>!v)} className="rounded-md border border-white/10 px-3 py-2 text-xs text-slate-400 hover:text-slate-200">{showDataset?'Hide dataset':'Show dataset'}</button></div>{showDataset&&<div className="mt-4 space-y-4"><div><div className="mb-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-600">Table definition</div><pre className="overflow-x-auto rounded-lg border border-white/10 bg-black/20 p-4 text-xs leading-5 text-slate-400">{q.fixtureDdl}</pre></div>{q.fixturePreview&&<div><div className="mb-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-600">Sample data</div><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr>{q.fixturePreview.columns.map(col=><th key={col} className="border-b border-white/10 px-3 py-2 font-medium text-slate-500">{col}</th>)}</tr></thead><tbody>{q.fixturePreview.rows.map((row,i)=><tr key={i}>{row.map((cell,j)=><td key={j} className="border-b border-white/5 px-3 py-2 text-slate-400">{cell===null?'NULL':String(cell)}</td>)}</tr>)}</tbody></table></div></div>}</div>}</div>
-   <textarea value={answer} onKeyDown={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.altKey)setKeystrokes(v=>v+1)}} onChange={e=>{setAnswer(e.target.value);events.current.push({type:'EDIT',at:new Date().toISOString()})}} className="mt-6 min-h-[55vh] w-full resize-none rounded-lg border border-white/10 bg-black/30 p-4 font-mono text-sm leading-6 text-slate-200 outline-none placeholder:text-slate-700" spellCheck={false} autoCorrect="off" autoCapitalize="off" placeholder="Write your solution here…" aria-label="Your answer"/>
-   {error&&<p className="mt-3 text-sm text-rose-300" role="alert">{error}</p>}
-   <div className="mt-4 flex items-center justify-between gap-4"><span className="text-xs text-slate-600">{keystrokes} keystrokes recorded · The next question adapts to your response and time.</span><button className="btn-primary" disabled={!answer.trim()||submitting||seconds===0} onClick={submit}>{submitting?'Evaluating…':'Submit & continue →'}</button></div>
-  </div>
- </div></div>;
+
+ useEffect(()=>{
+  const onKey=(e:KeyboardEvent)=>{
+   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();sessionStorage.setItem('patima:draft:'+sessionId,answer);setError('Draft saved locally.');}
+   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();void run();}
+   if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key==='Enter'){e.preventDefault();void runTests();}
+  };
+  window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
+ });
+
+ useEffect(()=>{
+  const t=window.setTimeout(()=>sessionStorage.setItem('patima:draft:'+sessionId,answer),5000);
+  return()=>window.clearTimeout(t);
+ },[answer,sessionId]);
+
+ const language=useMemo(()=>state?.assessment?.slug?.startsWith('python')?'python':state?.assessment?.slug?.startsWith('java')?'java':'sql',[state?.assessment?.slug]);
+
+ const loadSchema=useCallback(async()=>{
+  if(!state?.question)return;
+  try{
+   const r=await fetch('/api/assessments/workspace/schema?sessionId='+encodeURIComponent(sessionId)+'&variantId='+encodeURIComponent(state.question.variantId),{cache:'no-store'});
+   if(r.ok)setSchema(await r.json());
+  }catch{}
+ },[sessionId,state?.question]);
+
+ useEffect(()=>{void loadSchema()},[loadSchema]);
+
+ async function run(){
+  if(!state?.question||!answer.trim()||running)return;
+  setRunning(true);setError('');setConsoleTab('output');
+  try{
+   const r=await fetch('/api/assessments/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question.variantId,code:answer})});
+   const data=await r.json();if(!r.ok)throw new Error(data.error||'Run failed');setRunResult(data);
+  }catch(e){setError(e instanceof Error?e.message:'Run failed')}finally{setRunning(false)}
+ }
+
+ async function runTests(){
+  if(!state?.question||!answer.trim()||testing)return;
+  setTesting(true);setError('');setConsoleTab('tests');
+  try{
+   const r=await fetch('/api/assessments/run-tests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question.variantId,code:answer})});
+   const data=await r.json();if(!r.ok)throw new Error(data.error||'Test run failed');setTestResult(data);
+  }catch(e){setError(e instanceof Error?e.message:'Test run failed')}finally{setTesting(false)}
+ }
+
+ async function submit(){
+  if(!state?.question||!answer.trim()||submitting)return;
+  if(testResult&&testResult.publicTestsTotal&&testResult.publicTestsPassed!==testResult.publicTestsTotal){setError('Run Tests must pass all visible tests before submission.');setConsoleTab('tests');return}
+  setSubmitting(true);setError('');
+  try{
+   const r=await fetch('/api/assessments/submit-step',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    sessionId,variantId:state.question.variantId,submittedCode:answer,
+    durationSeconds:Math.max(1,Math.round((Date.now()-startedAt)/1000)),
+    integrity:{keystrokeCount:keystrokes,events:events.slice(-20)}
+   })});
+   const data=await r.json();if(!r.ok)throw new Error(data.error||'Unable to submit answer');
+   sessionStorage.removeItem('patima:draft:'+sessionId);
+   if(data.status==='COMPLETED'){setState({...state,closed:true,status:'VERIFIED',question:undefined});if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});return}
+   setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setKeystrokes(0);setRunResult(null);setTestResult(null);setSchema(null);setConsoleTab('output');void loadSchema();
+  }catch(e){setError(e instanceof Error?e.message:'Unable to submit answer')}finally{setSubmitting(false)}
+ }
+
+ if(loading)return <div className="min-h-screen bg-[#050a0f] text-slate-100 p-4"><p className="text-sm text-slate-400">Preparing secure assessment workspace…</p></div>;
+ if(error&&!state)return <div className="min-h-screen bg-[#050a0f] p-6 text-rose-300">{error}</div>;
+ if(state?.closed)return <div className="min-h-screen bg-[#050a0f] p-6 text-slate-100"><div className="mx-auto max-w-3xl"><p className="text-xs uppercase tracking-widest text-emerald-300">Assessment complete</p><h1 className="mt-2 text-3xl font-semibold">{state.assessment?.title||'Assessment'}</h1><div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-6"><p className="text-sm leading-7 text-slate-400">Your responses have been verified and recorded on the server.</p><button className="btn-primary mt-5" onClick={()=>router.push('/app/results')}>View result →</button></div></div></div>;
+
+ const q=state?.question;if(!q)return null;
+ const publicPassed=testResult?.publicTestsTotal?testResult.publicTestsPassed===testResult.publicTestsTotal:false;
+ return <div className="h-screen overflow-hidden bg-[#050a0f] text-slate-100">
+  <header className="flex h-12 items-center justify-between border-b border-white/10 bg-[#081018] px-4">
+   <div className="flex items-center gap-4"><span className="font-semibold tracking-tight">PATIMA</span><span className="text-xs text-slate-500">{state.assessment?.title}</span><span className="text-xs text-slate-600">·</span><span className="text-xs text-slate-500">Question {q.stepIndex}/{q.totalQuestions}</span></div>
+   <div className="flex items-center gap-5 text-xs"><span className="text-slate-600">{language.toUpperCase()}</span><span className={seconds!==null&&seconds<180?'text-amber-300':'text-slate-400'}>{seconds!==null?Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'--:--'}</span></div>
+  </header>
+  <main className="grid h-[calc(100vh-6rem)] grid-cols-[34%_66%]">
+   <section className="overflow-y-auto border-r border-white/10 bg-[#071019] p-5">
+    <div className="text-xs uppercase tracking-widest text-emerald-300">Problem</div>
+    <div className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">{q.promptMarkdown}</div>
+    <div className="mt-6 rounded-lg border border-white/10 bg-black/20 p-4">
+     <div className="text-xs uppercase tracking-widest text-slate-500">Constraints & execution</div>
+     <div className="mt-3 space-y-2 text-xs text-slate-500"><p>Server timeout and memory limits are authoritative.</p><p>Hidden tests and adversarial fixtures are never sent to the browser.</p><p>Run is scratchpad-only; Submit is the authoritative verification step.</p></div>
+    </div>
+    <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
+     <div className="flex items-center justify-between"><span className="text-xs uppercase tracking-widest text-slate-500">Database schema</span><button onClick={()=>setSchema(null)} className="text-xs text-slate-600">refresh</button></div>
+     {schema?<div className="mt-3 space-y-3"><div className="text-sm text-slate-300">{schema.tableName}</div><div className="space-y-1">{schema.columns?.map((c:any)=><div key={c.name} className="flex justify-between text-xs"><span className="text-slate-400">{c.name}</span><span className="text-slate-600">{c.type}</span></div>)}</div><div className="overflow-x-auto"><table className="w-full text-left text-[11px]"><tbody>{schema.sampleData?.slice(0,6).map((row:any,i:number)=><tr key={i}>{Object.values(row).map((v:any,j:number)=><td key={j} className="border-b border-white/5 px-2 py-1 text-slate-500">{String(v??'NULL')}</td>)}</tr>)}</tbody></table></div></div>:<p className="mt-3 text-xs text-slate-600">Loading schema…</p>}
+    </div>
+    {q.fixturePreview&&<details className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4"><summary className="cursor-pointer text-xs uppercase tracking-widest text-slate-500">Sample data</summary><div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr>{q.fixturePreview.columns.map(c=><th key={c} className="border-b border-white/10 px-2 py-2 text-slate-600">{c}</th>)}</tr></thead><tbody>{q.fixturePreview.rows.slice(0,8).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j} className="border-b border-white/5 px-2 py-1 text-slate-500">{String(v??'NULL')}</td>)}</tr>)}</tbody></table></div></details>}
+   </section>
+   <section className="grid min-h-0 grid-rows-[1fr_35%]">
+    <div className="min-h-0 border-b border-white/10">
+     <Editor height="100%" theme="vs-dark" language={language} value={answer} onChange={v=>{setAnswer(v||'');setKeystrokes(k=>k+1)}} options={{automaticLayout:true,minimap:{enabled:true},fontSize:14,lineNumbers:'on',wordWrap:'on',folding:true,bracketPairColorization:{enabled:true},padding:{top:14},scrollBeyondLastLine:false,suggestOnTriggerCharacters:true}} onMount={editor=>{editor.addAction({id:'patima-run',label:'PATIMA: Run',keybindings:[2048+3],run:()=>void run()});editor.addAction({id:'patima-tests',label:'PATIMA: Run Tests',keybindings:[2048+1024+3],run:()=>void runTests()})}} />
+    </div>
+    <div className="min-h-0 bg-[#060c12]">
+     <div className="flex h-10 items-center gap-1 border-b border-white/10 px-3">{(['output','tests','environment'] as const).map(t=><button key={t} onClick={()=>setConsoleTab(t)} className={'px-3 py-2 text-xs '+(consoleTab===t?'text-emerald-300':'text-slate-600')}>{t==='output'?'Run Console':t==='tests'?'Public Tests':'Environment'}</button>)}</div>
+     <div className="h-[calc(100%-2.5rem)] overflow-auto p-4 font-mono text-xs">
+      {consoleTab==='output'&&<div><div className="mb-3 flex gap-4 text-slate-500"><span>{runResult?runResult.verdict:'No run yet'}</span>{runResult&&<span>{runResult.executionTimeMs}ms</span>}</div>{runResult?.expectedOutput&&<div className="mb-3"><div className="mb-1 text-slate-600">Expected result</div><pre className="whitespace-pre-wrap text-emerald-200/80">{runResult.expectedOutput}</pre></div>}{runResult?.output&&<div><div className="mb-1 text-slate-600">Actual result</div><pre className="whitespace-pre-wrap text-slate-300">{runResult.output}</pre></div>}{runResult?.errorMessage&&<pre className="whitespace-pre-wrap text-rose-300">{runResult.errorMessage}</pre>}</div>}
+      {consoleTab==='tests'&&<div><div className="mb-3 text-slate-500">{testResult?testResult.publicTestsPassed+'/'+testResult.publicTestsTotal+' public tests passed':'Run Tests to validate visible cases.'}</div>{testResult?.testCases?.map(t=><div key={t.id} className="mb-2 rounded border border-white/5 p-3"><div className="flex justify-between"><span className="text-slate-400">{t.name}</span><span className={t.status==='AC'?'text-emerald-300':'text-rose-300'}>{t.status}</span></div>{t.expectedOutput&&<pre className="mt-2 whitespace-pre-wrap text-slate-600">expected: {t.expectedOutput}</pre>}{t.actualOutput&&<pre className="mt-1 whitespace-pre-wrap text-slate-500">actual: {t.actualOutput}</pre>}{t.errorMessage&&<div className="mt-1 text-rose-300">{t.errorMessage}</div>}</div>)}</div>}
+      {consoleTab==='environment'&&<div className="space-y-2 text-slate-500"><div>Runtime: <span className="text-slate-300">{testResult?.runtime?.language||runResult?.runtime?.language||'server-selected'}</span></div><div>Engine: <span className="text-slate-300">{testResult?.runtime?.engineVersion||runResult?.runtime?.engineVersion||'server-selected'}</span></div><div>CPU: <span className="text-slate-300">{testResult?.runtime?.vCpuLimit||runResult?.runtime?.vCpuLimit||'—'} vCPU</span></div><div>Memory: <span className="text-slate-300">{testResult?.runtime?.memoryLimitMb||runResult?.runtime?.memoryLimitMb||'—'} MB</span></div><div>Network: <span className="text-slate-300">disabled</span></div><div>Digest: <span className="break-all text-slate-600">{testResult?.environmentDigest||runResult?.environmentDigest||'—'}</span></div></div>}
+     </div>
+    </div>
+   </section>
+  </main>
+  <footer className="flex h-12 items-center justify-between border-t border-white/10 bg-[#081018] px-4">
+   <div className="flex items-center gap-4 text-[11px] text-slate-600"><span>{keystrokes} editor changes</span><span>Autosaved locally</span>{events.length>0&&<span className="text-amber-400">{events.length} integrity event(s)</span>}</div>
+   <div className="flex items-center gap-2"><button onClick={()=>void run()} disabled={running||!answer.trim()} className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 disabled:opacity-40">{running?'Running…':'Run  Ctrl+Enter'}</button><button onClick={()=>void runTests()} disabled={testing||!answer.trim()} className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 disabled:opacity-40">{testing?'Testing…':'Run Tests'}</button><button onClick={()=>void submit()} disabled={submitting||!answer.trim()||seconds===0||(!testResult?.publicTestsTotal?false:!publicPassed)} className="btn-primary">{submitting?'Verifying…':'Submit Step →'}</button></div>
+  </footer>
+ </div>;
 }
-export default function AssessmentWorkspacePage(){return <Suspense fallback={<div className="min-h-screen bg-[#071019] text-slate-100 p-4 sm:p-6"><div className="mx-auto max-w-3xl"><p className="eyebrow">ASSESSMENT WORKSPACE</p><h1 className="mt-2 text-2xl font-semibold">Loading…</h1></div></div>}><Workspace/></Suspense>}
+
+export default function AssessmentWorkspacePage(){
+ return <Suspense fallback={<div className="min-h-screen bg-[#050a0f] p-6 text-slate-400">Loading assessment workspace…</div>}><Workspace/></Suspense>;
+}
