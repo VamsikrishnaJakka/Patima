@@ -183,8 +183,8 @@ export async function allocateNextQuestion(
     const nextStep = session.current_step + 1;
     if (nextStep > session.total_questions) {
       await client.query(`
-        UPDATE assessment_sessions 
-        SET status = 'SUBMITTED', submitted_at = clock_timestamp(), final_theta = $1, updated_at = clock_timestamp()
+        UPDATE assessment_sessions
+        SET status = 'VERIFIED', submitted_at = clock_timestamp(), final_theta = $1, updated_at = clock_timestamp()
         WHERE id = $2;
       `, [targetTheta, session.id]);
       return null;
