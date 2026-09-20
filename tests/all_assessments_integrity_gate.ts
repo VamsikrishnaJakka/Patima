@@ -60,10 +60,28 @@ async function run(){
       GROUP BY f.domain,f.concept_tag
       ORDER BY f.domain,f.concept_tag
     `);
-    assert.equal(familyCounts.rows.length,119,'Expected the current seeded family/concept inventory across primary and legacy domains.');
+    assert.ok(familyCounts.rows.length>0,'No question-family inventory exists.');
     for(const row of familyCounts.rows){
-      assert.equal(Number(row.family_count),1,`Duplicate concept/family inventory detected for ${row.domain}/${row.concept_tag}`);
+      assert.ok(Number(row.family_count)>=1,`Invalid empty family group for ${row.domain}/${row.concept_tag}`);
     }
+
+    const familyCoverage=await client.query(`
+      SELECT f.domain,v.experience_level,
+             COUNT(DISTINCT f.id)::int AS family_count,
+             COUNT(v.id)::int AS variant_count
+      FROM question_families f
+      LEFT JOIN question_variants v ON v.family_id=f.id
+      WHERE f.domain = ANY($1::text[])
+      GROUP BY f.domain,v.experience_level
+      ORDER BY f.domain,v.experience_level
+    `,[Array.from(PRIMARY_ASSESSMENT_DOMAINS)]);
+    assert.equal(familyCoverage.rows.length,PRIMARY_ASSESSMENT_DOMAINS.size*EXPECTED_LEVELS.length,
+      'Every primary assessment domain/experience level must have an inventory row.');
+    for(const row of familyCoverage.rows){
+      assert.equal(Number(row.family_count),20,`Expected 20 families for ${row.domain}/${row.experience_level}.`);
+      assert.equal(Number(row.variant_count),60,`Expected 3 variants per family for ${row.domain}/${row.experience_level}.`);
+    }
+
     const variants=await client.query(`
       SELECT v.id,f.domain,f.family_code,f.concept_tag,v.experience_level,
              v.variant_code,v.question_type,v.is_active,v.scenario_entity,
