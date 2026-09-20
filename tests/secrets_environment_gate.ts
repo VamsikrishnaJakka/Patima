@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {existsSync,readFileSync} from 'node:fs';
+import {join} from 'node:path';
+
+const root=process.cwd();
+const tracked=execFileSync('git',['ls-files','-z'],{cwd:root}).toString().split('\0').filter(Boolean);
+const sourceFiles=tracked.filter(file=>/\.(ts|tsx|js|mjs|cjs)$/.test(file));
+const clientFiles=sourceFiles.filter(file=>{const text=readFileSync(join(root,file),'utf8');return text.includes("'use client'")||text.includes('"use client"');});
+const envExample=readFileSync(join(root,'.env.example'),'utf8');
+
+console.log('[GATE 1] Local secret-bearing environment files are ignored and not tracked...');
+assert.ok(existsSync(join(root,'.gitignore')));
+const gitignore=readFileSync(join(root,'.gitignore'),'utf8');
+for(const entry of ['.env','.env.local','.env.*.local']){assert.ok(gitignore.split(/\r?\n/).some(line=>line.trim()===entry),entry+' is not protected by .gitignore');}
+assert.ok(!tracked.some(file=>/^\.env(?:\..*)?$/.test(file)),'a real .env file is tracked');
+console.log('PASS: environment secret files are ignored and none are tracked.');
+
+console.log('[GATE 2] Public environment namespace cannot expose server secrets...');
+const publicSecret=/NEXT_PUBLIC_(?:DATABASE|DIRECT_URL|PG_|GEMINI_API_KEY|PATIMA_SEED_|.*PASSWORD|.*SECRET|.*TOKEN|.*PRIVATE_KEY)/i;
+assert.doesNotMatch(envExample,publicSecret);
+for(const file of sourceFiles){const text=readFileSync(join(root,file),'utf8');assert.doesNotMatch(text,publicSecret,'public secret environment variable reference in '+file);}
+console.log('PASS: no server-secret environment variables are exposed through NEXT_PUBLIC_.');
+
+console.log('[GATE 3] Client bundles cannot read server-only secret environment variables...');
+const serverOnly=/process\.env\.(?:DATABASE_URL|DIRECT_URL|GEMINI_API_KEY|PATIMA_SEED_CANDIDATE_PASSWORD|PATIMA_SEED_EMPLOYER_PASSWORD|PG_[A-Z0-9_]+)/;
+for(const file of clientFiles){const text=readFileSync(join(root,file),'utf8');assert.doesNotMatch(text,serverOnly,'server-only secret environment access in client file '+file);}
+console.log('PASS: client components contain no server-only secret environment access.');
+
+console.log('[GATE 4] Repository does not contain obvious hard-coded credential URLs...');
+const credentialUrl=/postgres(?:ql)?:\/\/[^\s"']+:[^\s"'@]+@/i;
+const realCredentialMarker=/(?:sk-[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,})/;
+for(const file of tracked.filter(file=>!file.endsWith('.lock'))){const text=readFileSync(join(root,file),'utf8');if(file==='.env.example')continue;assert.doesNotMatch(text,credentialUrl,'hard-coded credential URL in '+file);assert.doesNotMatch(text,realCredentialMarker,'credential-like token in '+file);}
+console.log('PASS: no obvious credential-bearing URLs or common token formats are committed.');
+
+console.log('[GATE 5] Passwords, API keys, and connection strings are not logged...');
+const sensitiveLog=/console\.(?:log|info|warn|error)\s*\([^\n]*(?:password|passwd|api[_-]?key|database_url|direct_url|connectionstring|authorization|cookie|token)[^\n]*\)/i;
+for(const file of sourceFiles){const text=readFileSync(join(root,file),'utf8');assert.doesNotMatch(text,sensitiveLog,'sensitive value may be logged in '+file);}
+console.log('PASS: no obvious sensitive-value logging patterns are committed.');
+
+console.log('[GATE 6] Environment example documents server-only handling...');
+assert.match(envExample,/Never commit real credentials/i);
+assert.match(envExample,/DATABASE_URL=/);
+assert.match(envExample,/DIRECT_URL=/);
+assert.match(envExample,/GEMINI_API_KEY=/);
+console.log('PASS: environment contract explicitly documents secret handling.');
+
+console.log('ALL 6 SECRETS / ENVIRONMENT SCRUBBING GATES PASSED.');
