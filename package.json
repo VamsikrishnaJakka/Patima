@@ -28,7 +28,8 @@
     "test:secrets": "tsx tests/secrets_environment_gate.ts",
     "test:mutation-races": "tsx tests/mutation_race_gate.ts",
     "test:tenant-access": "tsx tests/tenant_access_gate.ts",
-    "test:privacy-revocation": "tsx tests/privacy_revocation_gate.ts"
+    "test:privacy-revocation": "tsx tests/privacy_revocation_gate.ts",
+    "test:assessment-ux": "tsx tests/assessment_ux_gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
