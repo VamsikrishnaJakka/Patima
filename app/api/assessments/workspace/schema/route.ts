@@ -35,7 +35,7 @@ export async function GET(request:Request){
         return NextResponse.json({
           tableName:scenario_entity,
           columns:desc.getRowObjects().map((x:any)=>({name:String(x.column_name),type:String(x.column_type)})),
-          sampleData:preview.getRowObjects()
+          sampleData:(preview.getRowObjects() as any[]).map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,typeof value==='bigint'?Number(value):value instanceof Date?value.toISOString():value])))
         });
       }finally{
         try{conn.disconnectSync()}catch{}
