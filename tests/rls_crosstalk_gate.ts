@@ -28,10 +28,7 @@ async function prepareRlsRole(){
   const meta=await client.query("SELECT current_user,session_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user");
   const row=meta.rows[0];
   if(!row)throw new Error("Unable to inspect database role.");
-  if(!row.rolsuper){
-   if(row.rolbypassrls)throw new Error("Database role has BYPASSRLS; RLS gate cannot prove isolation.");
-   return {role:row.current_user,temporary:false};
-  }
+  if(!row.rolsuper&&!row.rolbypassrls)return {role:row.current_user,temporary:false};
   await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
   await client.query("CREATE ROLE "+TEST_RLS_ROLE+" NOSUPERUSER NOBYPASSRLS NOLOGIN");
   await client.query("GRANT USAGE ON SCHEMA public TO "+TEST_RLS_ROLE);
