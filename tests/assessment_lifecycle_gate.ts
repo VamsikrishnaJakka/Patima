@@ -44,7 +44,7 @@ async function cleanup(client:any){
   await client.query(`DELETE FROM assessment_sessions WHERE id=ANY($1::uuid[])`,[ctx.sessionIds]);
 }
 
-async function getExecutableVariant(client:any){
+async function getExecutableVariant(client:any,excludeId?:string){
   const r=await client.query(`
     SELECT v.*,f.domain
     FROM question_variants v
@@ -55,9 +55,10 @@ async function getExecutableVariant(client:any){
       AND v.is_active=true
       AND jsonb_array_length(v.public_tests)>0
       AND jsonb_array_length(v.hidden_tests)>0
+      AND ($1::uuid IS NULL OR v.id<>$1::uuid)
     ORDER BY f.family_code,v.variant_code
     LIMIT 1
-  `);
+  `,[excludeId??null]);
   if(!r.rows[0])throw new Error('No executable authored SQL variant is available.');
   return r.rows[0];
 }
@@ -188,8 +189,7 @@ async function run(){
 
     console.log('[GATE 6] Cross-session reservation binding...');
     const sessionB=await createSession(client,userId,2);
-    const variantB=await getExecutableVariant(client);
-    if(variantB.id===variant.id)throw new Error('Expected a distinct executable variant for cross-session binding gate.');
+    const variantB=await getExecutableVariant(client,variant.id);
     await reserveAuthoritativeQuestion(client,sessionB,variantB);
 
     let crossBlocked=false;
