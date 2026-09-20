@@ -1,7 +1,7 @@
-import {NextResponse} from 'next/server';
-import {getAssessment} from '@/lib/assessment-catalog';
-import {allocateNextQuestion} from '@/lib/assessment/allocator';
-import {requireCandidate,withAuthenticatedClient} from '@/lib/server-auth';
+import {NextResponse}from'next/server';
+import {getAssessment}from'@/lib/assessment-catalog';
+import {allocateNextQuestion}from'@/lib/assessment/allocator';
+import {requireCandidate,withAuthenticatedClient}from'@/lib/server-auth';
 
 const levels=['BEGINNER','INTERMEDIATE','ADVANCED'] as const;
 type ExperienceLevel=typeof levels[number];
@@ -12,16 +12,21 @@ const questionChoices=[5,10,15,20];
 const durationFor=(level:ExperienceLevel,count:number)=>Math.ceil((count*(level==='BEGINNER'?90:level==='INTERMEDIATE'?100:120))/60);
 
 export async function POST(request:Request){
+ let userId:string|undefined;
+ let domain='';
+ let assessmentTitle='';
  try{
   const session=await requireCandidate();
+  userId=session.userId;
   const body=await request.json();
-  const domain=typeof body.domain==='string'?body.domain:'';
+  domain=typeof body.domain==='string'?body.domain:'';
   const experienceLevel=String(body.experienceLevel||'').toUpperCase() as ExperienceLevel;
   const questionCount=Number(body.questionCount)||0;
   if(!levels.includes(experienceLevel))return NextResponse.json({error:'Invalid experience level'},{status:400});
   if(!questionChoices.includes(questionCount))return NextResponse.json({error:'Choose 5, 10, 15, or 20 questions'},{status:400});
   const assessment=getAssessment(domain);
   if(!assessment)return NextResponse.json({error:'Assessment domain is unavailable'},{status:400});
+  assessmentTitle=assessment.title;
 
   const result=await withAuthenticatedClient(async(_,client)=>{
    const config=await client.query(
@@ -54,20 +59,20 @@ export async function POST(request:Request){
   return NextResponse.json(result);
  }catch(error){
   const postgresCode=error&&typeof error==='object'&&'code' in error?String((error as {code?:unknown}).code):'';
-  if(postgresCode==='23505'){
+  if(postgresCode==='23505'&&userId){
    try{
     const active=await withAuthenticatedClient(async(_,client)=>client.query(
      `SELECT id,experience_level,current_step,selected_question_count,expires_at
       FROM assessment_sessions
       WHERE user_id=$1 AND domain=$2 AND status='IN_PROGRESS'
       ORDER BY started_at DESC LIMIT 1`,
-     [session.userId,domain]
+     [userId,domain]
     ));
     const row=active.rows[0];
     return NextResponse.json({
      error:'SESSION_ALREADY_ACTIVE',
      message:row
-      ? `You already have an active ${String(row.experience_level||'').toLowerCase()} ${assessment.title} assessment. Resume it or exit it before starting another.`
+      ? `You already have an active ${String(row.experience_level||'').toLowerCase()} ${assessmentTitle} assessment. Resume it or exit it before starting another.`
       : 'You already have an active assessment for this technology. Resume it or exit it before starting another.',
      sessionId:row?.id||null,
      experienceLevel:row?.experience_level||null,
