@@ -21,5 +21,5 @@ export async function POST(request:Request){
    const r=await client.query(`INSERT INTO candidate_contact_intents(employer_account_id,candidate_user_id,requested_by_user_id,role_title,message_body) VALUES($1,$2,$3,$4,$5) RETURNING id,status,expires_at`,[s.employerAccountId,candidateId,s.userId,roleTitle,message]);
    return NextResponse.json({...r.rows[0],contact_details_unlocked:false},{status:201});
   },{requiresAdvisoryLock:true});
- }catch(e:any){if(e?.code==='23505')return NextResponse.json({error:'A pending or active contact request already exists for this candidate and role'},{status:409});return NextResponse.json({error:e instanceof Error&&e.message==='UNAUTHORIZED'?'Unauthorized employer session':'Internal database error dispatching contact intent'},{status:e instanceof Error&&e.message==='UNAUTHORIZED'?401:500});}
+ }catch(e:any){if(e?.code==='23505')return NextResponse.json({error:'A pending or active contact request already exists for this candidate and role'},{status:409});if(e?.message==='WEEKLY_CONTACT_QUOTA_EXCEEDED')return NextResponse.json({error:'Weekly candidate contact quota exceeded'},{status:429});return NextResponse.json({error:e instanceof Error&&e.message==='UNAUTHORIZED'?'Unauthorized employer session':'Internal database error dispatching contact intent'},{status:e instanceof Error&&e.message==='UNAUTHORIZED'?401:500});}
 }
