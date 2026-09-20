@@ -90,7 +90,7 @@ async function run(){
       JOIN question_families f ON f.id=v.family_id
       ORDER BY f.domain,v.experience_level,f.family_code,v.variant_code
     `);
-    assert.equal(variants.rows.length,EXPECTED_DOMAINS.length*EXPECTED_LEVELS.length*20*3,'Expected exactly 3 variants per family/level across the 6 configured domains.');
+    assert.equal(variants.rows.length,960,'Expected 900 primary-assessment variants plus 60 legacy SQL variants.');
     for(const row of variants.rows){
       assert.ok(EXPECTED_DOMAINS.includes(row.domain),`Unexpected variant domain: ${row.domain}`);
       assert.ok(EXPECTED_LEVELS.includes(row.experience_level),`Unexpected variant level: ${row.experience_level}`);
