@@ -40,7 +40,7 @@ async function run(){
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   assert.equal(r.rows[0]?.user_id,EMPLOYER);
   assert.equal(r.rows[0]?.employer_id,EMPLOYER_ACCOUNT);
- });
+ },{employerAccountId:EMPLOYER_ACCOUNT});
  console.log("PASS: employer user and organization context are both transaction-scoped.");
 
  console.log("[GATE 3] Rollback clears both context values...");
