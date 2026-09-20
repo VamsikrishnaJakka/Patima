@@ -54,7 +54,31 @@ export async function POST(request:Request){
   return NextResponse.json(result);
  }catch(error){
   const postgresCode=error&&typeof error==='object'&&'code' in error?String((error as {code?:unknown}).code):'';
-  if(postgresCode==='23505')return NextResponse.json({error:'SESSION_ALREADY_ACTIVE',message:'You already have an active assessment for this technology. Resume it or exit it before starting another.'},{status:409});
+  if(postgresCode==='23505'){
+   try{
+    const active=await withAuthenticatedClient(async(_,client)=>client.query(
+     `SELECT id,experience_level,current_step,selected_question_count,expires_at
+      FROM assessment_sessions
+      WHERE user_id=$1 AND domain=$2 AND status='IN_PROGRESS'
+      ORDER BY started_at DESC LIMIT 1`,
+     [session.userId,domain]
+    ));
+    const row=active.rows[0];
+    return NextResponse.json({
+     error:'SESSION_ALREADY_ACTIVE',
+     message:row
+      ? `You already have an active ${String(row.experience_level||'').toLowerCase()} ${assessment.title} assessment. Resume it or exit it before starting another.`
+      : 'You already have an active assessment for this technology. Resume it or exit it before starting another.',
+     sessionId:row?.id||null,
+     experienceLevel:row?.experience_level||null,
+     currentStep:row?.current_step||null,
+     questionCount:row?.selected_question_count||null,
+     expiresAt:row?.expires_at||null
+    },{status:409});
+   }catch{
+    return NextResponse.json({error:'SESSION_ALREADY_ACTIVE',message:'You already have an active assessment for this technology. Resume it or exit it before starting another.'},{status:409});
+   }
+  }
   const message=error instanceof Error?error.message:'INTERNAL_ERROR';
   const status=message==='UNAUTHORIZED'?401:message==='ASSESSMENT_LEVEL_NOT_CONFIGURED'?409:message==='CAPABILITY_NOT_CONFIGURED'?503:500;
   return NextResponse.json({error:
