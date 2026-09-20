@@ -26,7 +26,7 @@ export async function executeUnifiedEngine(req:{mode:EngineMode;sql:string;varia
  for(const tc of targets){
   let db:DuckDBInstance|undefined,c:any;const caseStart=performance.now();
   try{
-   db=await DuckDBInstance.create(':memory:',{threads:'1',max_memory:'128MB',access_mode:'READ_WRITE'});c=db.connect();
+   db=await DuckDBInstance.create(':memory:',{threads:'1',max_memory:'128MB',access_mode:'READ_WRITE'});c=await db.connect();
    await c.runAndReadAll('SET threads=1');await c.runAndReadAll("SET memory_limit='128MB'");await c.runAndReadAll(tc.fixtureDdl);
    const input=await executeWithDuckDbMetadata(c,`SELECT * FROM ${variant.scenario_entity} LIMIT 8`);
    const actual=await executeWithSettledInterrupt(c,sql,2000);
