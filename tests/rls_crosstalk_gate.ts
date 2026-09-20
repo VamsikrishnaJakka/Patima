@@ -81,7 +81,7 @@ async function run(){
  console.log("================================================================");
 
  console.log("[GATE 1] Transaction-local user context...");
- await withSessionClient(CANDIDATE,async(client)=>{
+ await withSessionClient(CANDIDATE,async(client:import("pg").PoolClient)=>{
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   assert.equal(r.rows[0]?.user_id,CANDIDATE);
   assert.equal(r.rows[0]?.employer_id,"");
@@ -89,7 +89,7 @@ async function run(){
  console.log("PASS: candidate context is set only inside its transaction.");
 
  console.log("[GATE 2] Transaction-local employer context...");
- await withSessionClient(EMPLOYER,async(client)=>{
+ await withSessionClient(EMPLOYER,async(client:import("pg").PoolClient)=>{
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   assert.equal(r.rows[0]?.user_id,EMPLOYER);
   assert.equal(r.rows[0]?.employer_id,EMPLOYER_ACCOUNT);
@@ -107,16 +107,16 @@ async function run(){
  console.log("PASS: failed transactions cannot leave identity or organization context on a pooled connection.");
 
  console.log("[GATE 4] Context switches cannot inherit prior identity...");
- await withSessionClient(CANDIDATE,async(client)=>{
+ await withSessionClient(CANDIDATE,async(client:import("pg").PoolClient)=>{
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id");
   assert.equal(r.rows[0]?.user_id,CANDIDATE);
  });
- await withSessionClient(EMPLOYER,async(client)=>{
+ await withSessionClient(EMPLOYER,async(client:import("pg").PoolClient)=>{
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   assert.equal(r.rows[0]?.user_id,EMPLOYER);
   assert.equal(r.rows[0]?.employer_id,EMPLOYER_ACCOUNT);
  },{employerAccountId:EMPLOYER_ACCOUNT});
- await withSessionClient(CANDIDATE,async(client)=>{
+ await withSessionClient(CANDIDATE,async(client:import("pg").PoolClient)=>{
   const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
   assert.equal(r.rows[0]?.user_id,CANDIDATE);
   assert.equal(r.rows[0]?.employer_id,"");
@@ -126,7 +126,7 @@ async function run(){
  console.log("[GATE 5] RLS sees only the active candidate context...");
  const rlsRole=await prepareRlsRole();
  try{
-  const candidateRows=await withRlsContext(rlsRole.role,CANDIDATE,undefined,async(client)=>{
+  const candidateRows=await withRlsContext(rlsRole.role,CANDIDATE,undefined,async(client:import("pg").PoolClient)=>{
    const r=await client.query("SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100");
    return r.rows;
   });
@@ -134,7 +134,7 @@ async function run(){
   console.log("PASS: candidate RLS returned "+candidateRows.length+" visible assessment session rows, all owned by the candidate.");
 
   console.log("[GATE 6] Employer context cannot masquerade as a candidate...");
-  const employerRows=await withRlsContext(rlsRole.role,EMPLOYER,EMPLOYER_ACCOUNT,async(client)=>{
+  const employerRows=await withRlsContext(rlsRole.role,EMPLOYER,EMPLOYER_ACCOUNT,async(client:import("pg").PoolClient)=>{
    const r=await client.query("SELECT id,user_id FROM assessment_sessions ORDER BY created_at DESC LIMIT 100");
    return r.rows;
   });
@@ -143,7 +143,7 @@ async function run(){
 
   console.log("[GATE 7] Deterministic concurrent mixed-user isolation...");
   const expected=[CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER,CANDIDATE,EMPLOYER];
-  const burst=await Promise.all(expected.map((userId,index)=>withRlsContext(rlsRole.role,userId,userId===EMPLOYER?EMPLOYER_ACCOUNT:undefined,async(client)=>{
+  const burst=await Promise.all(expected.map((userId,index)=>withRlsContext(rlsRole.role,userId,userId===EMPLOYER?EMPLOYER_ACCOUNT:undefined,async(client:import("pg").PoolClient)=>{
    await client.query("SELECT pg_sleep($1)",[index%2===0?0.02:0.01]);
    const r=await client.query("SELECT current_setting('app.current_user_id',true) AS user_id,current_setting('app.current_employer_account_id',true) AS employer_id");
    const visible=await client.query("SELECT count(*)::int AS count FROM assessment_sessions");
