@@ -1,0 +1,10 @@
+import{analyzeSqlStructure}from'../lib/verification/analysis/sql-analyzer';
+const q1=`SELECT order_id, customer_id, SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM customer_orders;`;
+const a1=analyzeSqlStructure(q1);
+if(a1.complexityProfile.theoreticalTime!=='O(n log n)')throw new Error('Expected O(n log n)');
+if(!a1.windowFrameExplicit||!a1.hasUnboundedPreceding)throw new Error('Expected explicit frame');
+if(!a1.partitionKeys.includes('customer_id')||!a1.orderKeys.includes('order_date'))throw new Error('Expected window keys');
+const q2=`SELECT order_id, customer_id, SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date ASC) FROM customer_orders;`;
+const a2=analyzeSqlStructure(q2);
+if(a2.performanceObservations.length===0)throw new Error('Expected implicit-frame observation');
+console.log('PASS: SQL structural analysis gate');
