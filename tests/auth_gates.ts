@@ -46,7 +46,12 @@ type CookieJar={value:string|null;setCookie:string};
 async function request(pathname:string,options:RequestInit={},jar:CookieJar={value:null,setCookie:""}){
  const headers=new Headers(options.headers);
  if(jar.value) headers.set("cookie",`patima_session=${jar.value}`);
- const response=await fetch(`${BASE}${pathname}`,{...options,headers,redirect:"manual"});
+ let response:Response;
+ try{
+  response=await fetch(`${BASE}${pathname}`,{...options,headers,redirect:"manual"});
+ }catch(error){
+  throw new Error(`AUTH GATE PREREQUISITE FAILED: cannot reach ${BASE}. Start the Next.js server with "npm run dev" in another terminal, then rerun npm run test:auth-gates. Root cause: ${error instanceof Error?error.message:String(error)}`);
+ }
  const set=response.headers.get("set-cookie")||"";
  const match=set.match(/patima_session=([^;]*)/);
  if(match) jar.value=match[1];
