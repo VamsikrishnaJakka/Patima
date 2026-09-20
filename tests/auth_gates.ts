@@ -63,7 +63,9 @@ async function request(pathname:string,options:RequestInit={},jar:CookieJar={val
 async function login(email:string,password:string):Promise<CookieJar>{
  const jar:CookieJar={value:null,setCookie:""};
  const r=await request("/api/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,password})},jar);
- assert.equal(r.response.status,200,`login ${email} must return 200`);
+ if(r.response.status!==200){
+  throw new Error(`AUTH GATE LOGIN PREREQUISITE FAILED: ${email} returned HTTP ${r.response.status}. Safe response body: ${JSON.stringify(r.body)}. Check the Next.js server terminal for the underlying server-side error; the API intentionally does not expose internal exception details.`);
+ }
  assert.ok(jar.value,`login ${email} must issue patima_session cookie`);
  return jar;
 }
