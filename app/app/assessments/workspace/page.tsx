@@ -104,7 +104,7 @@ function Workspace(){
   setRunning(true);setError('');setConsoleTab('output');
   try{
    const r=await fetch('/api/assessments/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question.variantId,code:answer})});
-   const data=await r.json();if(!r.ok)throw new Error(data.error||'Run failed');setRunResult(data);
+   const data=await r.json();if(!r.ok)throw new Error(data.message||data.error||'Run failed');setRunResult(data);
   }catch(e){setError(e instanceof Error?e.message:'Run failed')}finally{setRunning(false)}
  }
 
@@ -113,7 +113,7 @@ function Workspace(){
   setTesting(true);setError('');setConsoleTab('tests');
   try{
    const r=await fetch('/api/assessments/run-tests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question.variantId,code:answer})});
-   const data=await r.json();if(!r.ok)throw new Error(data.error||'Test run failed');setTestResult(data);
+   const data=await r.json();if(!r.ok)throw new Error(data.message||data.error||'Test run failed');setTestResult(data);
   }catch(e){setError(e instanceof Error?e.message:'Test run failed')}finally{setTesting(false)}
  }
 
@@ -127,7 +127,7 @@ function Workspace(){
     durationSeconds:Math.max(1,Math.round((Date.now()-startedAt)/1000)),
     integrity:{keystrokeCount:keystrokes,events:events.slice(-20)}
    })});
-   const data=await r.json();if(!r.ok)throw new Error(data.error||'Unable to submit answer');
+   const data=await r.json();if(!r.ok){const report=data.report;const failed=report?.firstFailingTestCase;const detail=report?('Verification: '+report.verdict+' · Public '+report.publicTestsPassed+'/'+report.publicTestsTotal+' · Hidden '+report.hiddenTestsPassed+'/'+report.hiddenTestsTotal+(failed?.name?' · Failed: '+failed.name:'')+(failed?.errorMessage?' · '+failed.errorMessage:'')):'';throw new Error((data.message||data.error||'Unable to submit answer')+(detail?' — '+detail:''));}
    sessionStorage.removeItem('patima:draft:'+sessionId);
    if(data.status==='COMPLETED'){setState({...state,closed:true,status:'VERIFIED',question:undefined});if(document.fullscreenElement)await document.exitFullscreen().catch(()=>{});return}
    setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setKeystrokes(0);setRunResult(null);setTestResult(null);setSchema(null);setConsoleTab('output');void loadSchema();
