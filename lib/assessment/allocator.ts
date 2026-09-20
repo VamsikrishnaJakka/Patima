@@ -21,6 +21,11 @@ export interface AllocatedQuestion {
   fixturePreview?: {columns:string[];rows:(string|number|null)[][]};
   totalQuestions: number;
   remainingTimeSeconds: number;
+  draftResponse?: string;
+  expectedTimeComplexity?: string | null;
+  expectedSpaceComplexity?: string | null;
+  questionType?: string | null;
+  conceptRubric?: unknown;
 }
 
 export async function allocateNextQuestion(
@@ -31,10 +36,10 @@ export async function allocateNextQuestion(
   const sessionRes = await client.query(`
     SELECT s.id, s.user_id, s.domain, s.experience_level, s.current_step, 
            s.started_at, s.status,
-           COALESCE(s.selected_question_count, c.total_questions) AS total_questions, COALESCE(s.selected_duration_minutes, c.duration_minutes) AS duration_minutes, c.min_difficulty, 
+           COALESCE(s.selected_question_count, c.total_questions) AS total_questions, COALESCE(s.selected_duration_minutes, c.total_questions * 0 + c.duration_minutes) AS duration_minutes, c.min_difficulty, 
            c.max_difficulty, c.starting_difficulty,
            -- PostgreSQL calculates authoritative remaining time
-           GREATEST(0, EXTRACT(EPOCH FROM (s.started_at + (c.duration_minutes * interval '1 minute') - clock_timestamp())))::INT AS remaining_seconds
+           GREATEST(0, EXTRACT(EPOCH FROM (s.started_at + (COALESCE(s.selected_duration_minutes, c.duration_minutes) * interval '1 minute') - clock_timestamp())))::INT AS remaining_seconds
     FROM assessment_sessions s
     JOIN assessment_level_configs c 
       ON c.domain = s.domain AND c.experience_level = s.experience_level
@@ -57,9 +62,12 @@ export async function allocateNextQuestion(
 
   // 2. Refresh / Resume Check: If an active reservation exists and no submission was sent, re-serve Question
   const activeRes = await client.query(`
-    SELECT v.id, v.difficulty_score, v.prompt_markdown, v.scenario_entity, v.fixture_ddl, v.fixture_preview
+    SELECT v.id, v.difficulty_score, v.prompt_markdown, v.scenario_entity, v.fixture_ddl, v.fixture_preview,
+           v.expected_time_complexity, v.expected_space_complexity, v.question_type, v.concept_rubric,
+           l.draft_response
     FROM active_question_reservations r
     JOIN question_variants v ON v.id = r.variant_id
+    LEFT JOIN assessment_adaptive_logs l ON l.session_id = r.session_id AND l.step_index = (SELECT current_step FROM assessment_sessions WHERE id = r.session_id)
     WHERE r.session_id = $1 AND r.expires_at > clock_timestamp();
   `, [session.id]);
 
@@ -75,6 +83,11 @@ export async function allocateNextQuestion(
       fixturePreview: active.fixture_preview,
       totalQuestions: session.total_questions,
       remainingTimeSeconds: session.remaining_seconds,
+      draftResponse: active.draft_response || '',
+      expectedTimeComplexity: active.expected_time_complexity,
+      expectedSpaceComplexity: active.expected_space_complexity,
+      questionType: active.question_type,
+      conceptRubric: active.concept_rubric,
     };
   }
 
@@ -177,7 +190,8 @@ export async function allocateNextQuestion(
   // 4. Atomic Selection of Next Question Variant
   const variantRes = await client.query(`
     SELECT v.id, v.family_id, v.difficulty_score, v.prompt_markdown, 
-           v.scenario_entity, v.fixture_ddl, v.fixture_preview
+           v.scenario_entity, v.fixture_ddl, v.fixture_preview, v.expected_time_complexity,
+           v.expected_space_complexity, v.question_type, v.concept_rubric
     FROM question_variants v
     JOIN question_families f ON f.id = v.family_id
     WHERE f.domain = $1
@@ -248,6 +262,11 @@ export async function allocateNextQuestion(
     fixtureDdl: selected.fixture_ddl,
     fixturePreview: selected.fixture_preview,
     totalQuestions: session.total_questions,
+    draftResponse: '',
+    expectedTimeComplexity: selected.expected_time_complexity,
+    expectedSpaceComplexity: selected.expected_space_complexity,
+    questionType: selected.question_type,
+    conceptRubric: selected.concept_rubric,
     remainingTimeSeconds: session.remaining_seconds,
   };
 }
