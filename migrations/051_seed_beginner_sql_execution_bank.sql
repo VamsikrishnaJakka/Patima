@@ -4,7 +4,7 @@
 -- advanced window-function puzzles.
 
 WITH target AS (
-  SELECT v.id,f.concept_tag,f.family_id
+  SELECT v.id,f.concept_tag
   FROM question_variants v
   JOIN question_families f ON f.id=v.family_id
   WHERE f.domain='sql-window-functions'
