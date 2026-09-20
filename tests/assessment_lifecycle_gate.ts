@@ -188,7 +188,19 @@ async function run(){
     console.log('PASS: consumed reservation cannot be replayed.');
 
     console.log('[GATE 6] Cross-session reservation binding...');
-    const sessionB=await createSession(client,userId,2);
+    // The single-active-session invariant intentionally prevents two active
+    // sessions for one candidate/domain. Use a distinct candidate so this
+    // gate tests reservation identity without violating that invariant.
+    const candidateB=await client.query(
+      `SELECT id
+       FROM user_accounts
+       WHERE role='candidate' AND status='ACTIVE' AND id<>$1
+       ORDER BY created_at
+       LIMIT 1`,
+      [userId],
+    );
+    assert.ok(candidateB.rows[0], 'Need a second active candidate for cross-session binding gate.');
+    const sessionB=await createSession(client,candidateB.rows[0].id as string,2);
     const variantB=await getExecutableVariant(client,variant.id);
     await reserveAuthoritativeQuestion(client,sessionB,variantB);
 
