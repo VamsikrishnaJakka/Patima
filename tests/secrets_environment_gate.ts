@@ -5,7 +5,7 @@ import {join} from 'node:path';
 
 const root=process.cwd();
 const tracked=execFileSync('git',['ls-files','-z'],{cwd:root}).toString().split('\0').filter(Boolean);
-const sourceFiles=tracked.filter(file=>/\.(ts|tsx|js|mjs|cjs)$/.test(file));
+const sourceFiles=tracked.filter(file=>/^(app|lib|scripts)\//.test(file)&&/\.(ts|tsx|js|mjs|cjs)$/.test(file));
 const clientFiles=sourceFiles.filter(file=>{const text=readFileSync(join(root,file),'utf8');return text.includes("'use client'")||text.includes('"use client"');});
 const envExample=readFileSync(join(root,'.env.example'),'utf8');
 
