@@ -1,4 +1,6 @@
 import {NextResponse} from 'next/server';
+
+export const dynamic = 'force-dynamic';
 import {requireCandidate} from '@/lib/server-auth';
 import {withSessionClient} from '@/lib/db';
 import {DuckDBInstance} from '@duckdb/node-api';
