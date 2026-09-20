@@ -8,7 +8,8 @@ export interface NextQuestionRequest {
   durationSeconds?: number;
   isCorrect?: boolean;
   expectedVariantId?: string;
-  verificationReport?: {verdict:string;publicTestsPassed:number;publicTestsTotal:number;hiddenTestsPassed:number;hiddenTestsTotal:number;executionTimeMs:number;peakMemoryKb:number|null;executionDigest:string;testCases?:unknown[]};
+  verificationReport?: {verdict:string;publicTestsPassed:number;publicTestsTotal:number;hiddenTestsPassed:number;hiddenTestsTotal:number;executionTimeMs:number;peakMemoryKb:number|null;executionDigest:string;testCases?:unknown[];isCorrect?:boolean};
+  skipCurrent?: boolean;
 }
 
 export interface AllocatedQuestion {
@@ -25,6 +26,8 @@ export interface AllocatedQuestion {
   expectedTimeComplexity?: string | null;
   expectedSpaceComplexity?: string | null;
   questionType?: string | null;
+  responseMode?: 'CODE'|'MCQ'|'TEXT';
+  answerOptions?: string[];
   conceptRubric?: unknown;
 }
 
@@ -63,7 +66,7 @@ export async function allocateNextQuestion(
   // 2. Refresh / Resume Check: If an active reservation exists and no submission was sent, re-serve Question
   const activeRes = await client.query(`
     SELECT v.id, v.difficulty_score, v.prompt_markdown, v.scenario_entity, v.fixture_ddl, v.fixture_preview, v.question_type, v.public_tests, v.hidden_tests,
-           v.expected_time_complexity, v.expected_space_complexity, v.question_type, v.concept_rubric,
+           v.expected_time_complexity, v.expected_space_complexity, v.question_type, v.response_mode, v.answer_options, v.concept_rubric, v.correct_answer,
            l.draft_response
     FROM active_question_reservations r
     JOIN question_variants v ON v.id = r.variant_id
@@ -73,10 +76,10 @@ export async function allocateNextQuestion(
 
   if (activeRes.rows.length > 0 && !req.submittedCode) {
     const active = activeRes.rows[0];
-    const isExecutable = active.question_type === 'CODING'
+    const isValidActive = active.question_type === 'THEORY' || (active.question_type === 'CODING'
       && Array.isArray(active.public_tests) && active.public_tests.length > 0
-      && Array.isArray(active.hidden_tests) && active.hidden_tests.length > 0;
-    if (isExecutable) {
+      && Array.isArray(active.hidden_tests) && active.hidden_tests.length > 0);
+    if (isValidActive) {
       return {
       variantId: active.id,
       stepIndex: session.current_step,
@@ -91,6 +94,8 @@ export async function allocateNextQuestion(
       expectedTimeComplexity: active.expected_time_complexity,
       expectedSpaceComplexity: active.expected_space_complexity,
       questionType: active.question_type,
+      responseMode: active.response_mode || (active.question_type === 'THEORY' ? 'TEXT' : 'CODE'),
+      answerOptions: Array.isArray(active.answer_options) ? active.answer_options : [],
       conceptRubric: active.concept_rubric,
       };
     }
@@ -107,14 +112,7 @@ export async function allocateNextQuestion(
   let targetTheta = Number(session.starting_difficulty);
 
   if (req.submittedCode) {
-    // Security invariant: adaptive state may advance only from a server-produced
-    // authentic verification result. Never trust client-supplied isCorrect.
-    if (!req.verificationReport) {
-      throw new Error('VERIFICATION_REQUIRED_BEFORE_ADVANCE');
-    }
-    if (req.verificationReport.verdict !== 'ACCEPTED') {
-      throw new Error('VERIFICATION_FAILED_NO_ADVANCE');
-    }
+    if (!req.verificationReport) throw new Error('VERIFICATION_REQUIRED_BEFORE_ADVANCE');
     const submittedReservation = await client.query(`
       SELECT variant_id
       FROM active_question_reservations
@@ -152,11 +150,14 @@ export async function allocateNextQuestion(
     const timeFactor = (req.durationSeconds || 60) <= 45 ? 1.25 : 
                        (req.durationSeconds || 60) >= 180 ? 0.65 : 1.0;
     const delta = 0.35 * timeFactor;
+    const correct = req.verificationReport.isCorrect ?? (req.verificationReport.verdict === 'ACCEPTED');
 
-    // Hard floor and ceiling clamping
+    // A submitted wrong answer is still a completed response. It must not trap
+    // the candidate on the same question; adaptive difficulty moves down on an
+    // incorrect answer and up on a correct answer.
     targetTheta = Math.min(
       Number(session.max_difficulty),
-      Math.max(Number(session.min_difficulty), prevTheta + delta)
+      Math.max(Number(session.min_difficulty), prevTheta + (correct ? delta : -delta))
     );
 
     // Finalize current step in logs
@@ -174,7 +175,7 @@ export async function allocateNextQuestion(
         AND assessment_adaptive_logs.step_index = $15
         AND q.id = assessment_adaptive_logs.variant_id
     `, [
-      req.submittedCode, true, req.durationSeconds || 0, targetTheta,
+      req.submittedCode, correct, req.durationSeconds || 0, targetTheta,
       req.verificationReport?.publicTestsPassed || 0, req.verificationReport?.publicTestsTotal || 0,
       req.verificationReport?.hiddenTestsPassed || 0, req.verificationReport?.hiddenTestsTotal || 0,
       req.verificationReport?.executionTimeMs ?? null, req.verificationReport?.peakMemoryKb ?? null,
@@ -209,9 +210,9 @@ export async function allocateNextQuestion(
     WHERE f.domain = $1
       AND v.experience_level = $2
       AND v.is_active = TRUE
-      AND v.question_type = 'CODING'
-      AND jsonb_array_length(COALESCE(v.public_tests, '[]'::jsonb)) > 0
-      AND jsonb_array_length(COALESCE(v.hidden_tests, '[]'::jsonb)) > 0
+      AND (v.question_type = 'THEORY' OR (v.question_type = 'CODING'
+        AND jsonb_array_length(COALESCE(v.public_tests, '[]'::jsonb)) > 0
+        AND jsonb_array_length(COALESCE(v.hidden_tests, '[]'::jsonb)) > 0))
       AND v.difficulty_score BETWEEN $6 AND $7
       -- Invariant 1: No duplicate family in this session
       AND v.family_id NOT IN (
@@ -291,6 +292,8 @@ export async function allocateNextQuestion(
     expectedTimeComplexity: selected.expected_time_complexity,
     expectedSpaceComplexity: selected.expected_space_complexity,
     questionType: selected.question_type,
+    responseMode: selected.response_mode || (selected.question_type === 'THEORY' ? 'TEXT' : 'CODE'),
+    answerOptions: Array.isArray(selected.answer_options) ? selected.answer_options : [],
     conceptRubric: selected.concept_rubric,
     remainingTimeSeconds: session.remaining_seconds,
   };
