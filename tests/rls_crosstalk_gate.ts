@@ -44,6 +44,7 @@ async function prepareRlsRole(){
   await client.query("CREATE ROLE "+TEST_RLS_ROLE+" NOSUPERUSER NOBYPASSRLS NOLOGIN");
   await client.query("GRANT USAGE ON SCHEMA public TO "+TEST_RLS_ROLE);
   await client.query("GRANT SELECT ON assessment_sessions TO "+TEST_RLS_ROLE);
+  await client.query("GRANT "+TEST_RLS_ROLE+" TO CURRENT_USER");
   return {role:TEST_RLS_ROLE};
  }finally{client.release();}
 }
