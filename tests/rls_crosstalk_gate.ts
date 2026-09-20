@@ -25,11 +25,11 @@ const TEST_RLS_ROLE="patima_rls_gate";
 async function prepareRlsRole(){
  const client=await runtimePool.connect();
  try{
-  const meta=await client.query("SELECT current_user,session_user,usesuper,bypassrls FROM pg_roles WHERE rolname=current_user");
+  const meta=await client.query("SELECT current_user,session_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user");
   const row=meta.rows[0];
   if(!row)throw new Error("Unable to inspect database role.");
-  if(!row.usesuper){
-   if(row.bypassrls)throw new Error("Database role has BYPASSRLS; RLS gate cannot prove isolation.");
+  if(!row.rolsuper){
+   if(row.rolbypassrls)throw new Error("Database role has BYPASSRLS; RLS gate cannot prove isolation.");
    return {role:row.current_user,temporary:false};
   }
   await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
