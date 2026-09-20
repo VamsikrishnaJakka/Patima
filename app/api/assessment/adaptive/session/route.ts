@@ -3,6 +3,8 @@ import {getAssessment} from '@/lib/assessment-catalog';
 import {allocateNextQuestion} from '@/lib/assessment/allocator';
 import {requireCandidate,withAuthenticatedClient} from '@/lib/server-auth';
 
+export const dynamic='force-dynamic';
+
 export async function GET(request:Request){
  try{
   const session=await requireCandidate();
