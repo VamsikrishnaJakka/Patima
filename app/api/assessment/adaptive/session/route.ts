@@ -23,7 +23,19 @@ export async function GET(request:Request){
   return NextResponse.json(result,{headers:{'Cache-Control':'no-store'}});
  }catch(error){
   const message=error instanceof Error?error.message:'INTERNAL_ERROR';
-  const status=message==='UNAUTHORIZED'?401:message==='ASSESSMENT_NOT_FOUND'?404:message==='ASSESSMENT_UNAVAILABLE'?503:500;
-  return NextResponse.json({error:status===401?'Unauthorized':status===404?'Assessment session not found':'Unable to load adaptive assessment'},{status});
+  const postgresCode=error&&typeof error==='object'&&'code' in error?String((error as {code?:unknown}).code):'';
+  console.error('[PATIMA] assessment resume failed', {message, postgresCode});
+  const status=message==='UNAUTHORIZED'?401:
+   message==='ASSESSMENT_NOT_FOUND'?404:
+   message==='ASSESSMENT_UNAVAILABLE'?503:
+   message==='INSUFFICIENT_QUESTION_INVENTORY_FOR_SPECIFICATION'?409:
+   postgresCode==='42703'||postgresCode==='42P01'?503:500;
+  return NextResponse.json({
+   error:status===401?'Unauthorized':
+    status===404?'Assessment session not found':
+    status===409?'There are not enough unused questions to continue this assessment.':
+    status===503?'Assessment database configuration is incomplete or outdated. Run the latest migrations.':
+    'Unable to load adaptive assessment'
+  },{status});
  }
 }
