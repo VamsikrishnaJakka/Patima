@@ -10,8 +10,17 @@ type Variant={id:string;scenario_entity:string;fixture_ddl:string;public_tests:a
 export async function executeUnifiedEngine(req:{mode:EngineMode;sql:string;variant:Variant}):Promise<UnifiedEngineResponse>{
  const {mode,sql,variant}=req,start=performance.now();const structuralAnalysis=analyzeSqlStructure(sql);
  const policy=variant.verification_policy||{};
+ // The executable fixture is the source of truth for table authorization.
+ // Older seeded variants can contain stale scenario_entity / verification_policy
+ // names; do not let those stale metadata values reject the real fixture table.
+ const fixtureTables=extractFixtureTables([
+   variant.fixture_ddl,
+   ...(variant.public_tests||[]).map((t:any)=>t?.fixture_ddl||''),
+   ...(variant.hidden_tests||[]).map((t:any)=>t?.fixture_ddl||'')
+ ]);
+ const allowedTables=fixtureTables.length?fixtureTables:[variant.scenario_entity];
  const ast=validateSqlAstPolicy(sql,{
-  allowedTables:Array.isArray(policy.allowedTables)&&policy.allowedTables.length?policy.allowedTables:[variant.scenario_entity],
+  allowedTables,
   requiredPartitions:Array.isArray(policy.requiredPartitions)?policy.requiredPartitions:undefined,
   requiredOrderings:Array.isArray(policy.requiredOrderings)?policy.requiredOrderings:undefined,
   requireWindowFunction:policy.requireWindowFunction??false
@@ -28,7 +37,7 @@ export async function executeUnifiedEngine(req:{mode:EngineMode;sql:string;varia
   try{
    db=await DuckDBInstance.create(':memory:',{threads:'1',max_memory:'128MB',access_mode:'READ_WRITE'});c=await db.connect();
    await c.runAndReadAll('SET threads=1');await c.runAndReadAll("SET memory_limit='128MB'");await c.runAndReadAll(tc.fixtureDdl);
-   const input=await executeWithDuckDbMetadata(c,`SELECT * FROM ${variant.scenario_entity} LIMIT 8`);
+   const fixtureTable=await resolveFixtureTable(c,variant.scenario_entity); const input=await executeWithDuckDbMetadata(c,`SELECT * FROM ${quoteIdent(fixtureTable)} LIMIT 8`);
    const actual=await executeWithSettledInterrupt(c,sql,2000);
    const actualRows=(actual.getRowObjects() as any[]).map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.toLowerCase(),typeof v==='bigint'?Number(v):v instanceof Date?v.toISOString():v])));
    const meta=await c.runAndReadAll('DESCRIBE '+sql.trim().replace(/;+$/,''));
@@ -65,3 +74,26 @@ function findDiff(actual:ExecutedQueryResult,expected:ExecutedQueryResult,orderS
 }
 function advice(d:DiffLocation,a:ExecutedQueryResult,e:ExecutedQueryResult){if(d.columnName==='[ROW_COUNT]')return `Returned ${a.rows.length} rows, expected ${e.rows.length}. Check WHERE filters or GROUP BY granularity.`;if(d.columnName==='[COLUMNS]')return 'The selected columns do not match the expected result contract.';return `Mismatch at row ${d.rowIndex}, column '${d.columnName}'. Check filtering, ordering, aggregation, or window boundaries.`;}
 function detectClauses(sql:string){return ['SELECT','FROM','WHERE','GROUP BY','HAVING','ORDER BY','JOIN','OVER','PARTITION BY'].filter(x=>new RegExp('\\b'+x.replace(' ','\\s+')+'\\b','i').test(sql));}
+
+
+function extractFixtureTables(ddls:string[]):string[]{
+ const out=new Set<string>();
+ for(const ddl of ddls){
+  for(const m of ddl.matchAll(/(?:CREATE|CREATE\s+OR\s+REPLACE)\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))/gi)){
+   const name=(m[1]||m[2]||'').toLowerCase();
+   if(name)out.add(name);
+  }
+ }
+ return [...out];
+}
+async function resolveFixtureTable(conn:any,preferred:string):Promise<string>{
+ const r=await conn.runAndReadAll("SELECT table_name FROM information_schema.tables WHERE table_schema='main' ORDER BY table_name");
+ const names=(r.getRowObjects() as any[]).map(x=>String(x.table_name));
+ const p=String(preferred||'').toLowerCase();
+ if(names.includes(p))return p;
+ if(names.length===1)return names[0];
+ const orders=names.find(x=>x.toLowerCase()==='customer_orders');
+ if(orders)return orders;
+ throw new Error('FIXTURE_CONTAINS_NO_QUERYABLE_TABLE');
+}
+function quoteIdent(name:string):string{return '"' + name.replace(/"/g,'""') + '"';}
