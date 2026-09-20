@@ -33,6 +33,7 @@ function Setup(){
  const minutes=useMemo(()=>duration(level,count),[level,count]);
  const start=async()=>{
   setLoading(true);setError('');
+  if(document.fullscreenEnabled) await document.documentElement.requestFullscreen().catch(()=>{});
   try{
    const res=await fetch('/api/assessment/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,experienceLevel:level,questionCount:count})});
    const data=await res.json();
@@ -43,7 +44,12 @@ function Setup(){
  return <AppShell><div className="mx-auto max-w-3xl">
   <p className="eyebrow">ASSESSMENT SETUP</p>
   <h1 className="mt-2 text-3xl font-semibold">{tech[1]} assessment</h1>
-  <p className="mt-2 text-sm leading-6 text-slate-500">Choose your experience level and how many questions you want to attempt. The adaptive engine keeps every question inside the selected difficulty band.</p>
+  <p className="mt-2 text-sm leading-6 text-slate-500">Choose your starting point. If you are completely new to this technology, do not take an assessment yet — go directly to a guided roadmap.</p>
+  <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-5">
+   <p className="text-sm font-semibold text-emerald-200">I’m a complete beginner</p>
+   <p className="mt-2 text-sm leading-6 text-slate-400">I don’t know this technology yet. Take me to the learning roadmap instead of testing me.</p>
+   <button type="button" onClick={()=>router.push(`/app/roadmap?domain=${encodeURIComponent(domain)}`)} className="mt-3 text-xs font-medium text-emerald-300">Start learning →</button>
+  </div>
   <div className="panel mt-6 p-6">
    <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">1. Experience level</p>
    <div className="mt-3 grid gap-3 md:grid-cols-3">
