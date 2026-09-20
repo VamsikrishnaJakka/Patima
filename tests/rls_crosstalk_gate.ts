@@ -22,6 +22,15 @@ const EMPLOYER_ACCOUNT="e0000000-0000-0000-0000-000000000001";
 
 const TEST_RLS_ROLE="patima_rls_gate";
 
+async function cleanupTemporaryRole(){
+ const client=await runtimePool.connect();
+ try{
+  await client.query("REASSIGN OWNED BY "+TEST_RLS_ROLE+" TO CURRENT_USER");
+  await client.query("DROP OWNED BY "+TEST_RLS_ROLE);
+  await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
+ }finally{client.release();}
+}
+
 async function prepareRlsRole(){
  const client=await runtimePool.connect();
  try{
@@ -29,6 +38,8 @@ async function prepareRlsRole(){
   const row=meta.rows[0];
   if(!row)throw new Error("Unable to inspect database role.");
   if(!row.rolsuper&&!row.rolbypassrls)return {role:row.current_user,temporary:false};
+  await client.query("REASSIGN OWNED BY "+TEST_RLS_ROLE+" TO CURRENT_USER");
+  await client.query("DROP OWNED BY "+TEST_RLS_ROLE);
   await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
   await client.query("CREATE ROLE "+TEST_RLS_ROLE+" NOSUPERUSER NOBYPASSRLS NOLOGIN");
   await client.query("GRANT USAGE ON SCHEMA public TO "+TEST_RLS_ROLE);
