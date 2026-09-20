@@ -40,7 +40,7 @@ export async function executeUnifiedEngine(req:{mode:EngineMode;sql:string;varia
    }
    const expected=await executeWithDuckDbMetadata(c,tc.canonical_sql);
    const diff=findDiff(actualResult,expected,tc.order_sensitive??true);
-   cases.push({id:tc.id,name:tc.name,isPublic:tc.isPublic,status:diff?'WA':'AC',executionTimeMs:ms,inputFixturePreview:tc.isPublic?{columns:input.columns.map(x=>x.name),rows:input.rows}:undefined,expectedOutputPreview:tc.isPublic?{columns:expected.columns.map(x=>x.name),rows:expected.rows.slice(0,8)}:undefined,actualOutputPreview:tc.isPublic?{columns:actualResult.columns.map(x=>x.name),rows:actualResult.rows.slice(0,8)}:undefined,diff:tc.isPublic?diff:undefined,diagnosticAdvice:diff?advice(diff,actualResult,expected):undefined});
+   cases.push({id:tc.id,name:tc.name,isPublic:tc.isPublic,status:diff?'WA':'AC',executionTimeMs:ms,inputFixturePreview:tc.isPublic?{columns:input.columns.map(x=>x.name),rows:input.rows}:undefined,expectedOutputPreview:tc.isPublic?{columns:expected.columns.map(x=>x.name),rows:expected.rows.slice(0,8)}:undefined,actualOutputPreview:tc.isPublic?{columns:actualResult.columns.map(x=>x.name),rows:actualResult.rows.slice(0,8)}:undefined,diff:tc.isPublic?(diff??undefined):undefined,diagnosticAdvice:diff?advice(diff,actualResult,expected):undefined});
   }catch(e){
    const ms=Number((performance.now()-caseStart).toFixed(2)),msg=e instanceof Error?e.message:String(e),tle=msg==='EXECUTION_TIMEOUT_INTERRUPTED';
    cases.push({id:tc.id,name:tc.name,isPublic:tc.isPublic,status:tle?'TLE':'RE',executionTimeMs:ms,diagnosticAdvice:tle?'Execution exceeded the 2000ms wall-clock limit.':msg,errorMessage:msg});
