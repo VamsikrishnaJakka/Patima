@@ -23,7 +23,7 @@ function Workspace(){
  const[seconds,setSeconds]=useState<number|null>(null);
  const[startedAt,setStartedAt]=useState<number>(Date.now());
  const[keystrokes,setKeystrokes]=useState(0);
- const[consoleTab,setConsoleTab]=useState<'output'|'tests'|'environment'>('output');
+ const[consoleTab,setConsoleTab]=useState<'output'|'tests'|'analysis'|'environment'>('output');
  const[runResult,setRunResult]=useState<RunResult|null>(null);
  const[testResult,setTestResult]=useState<RunResult|null>(null);
  const[events,setEvents]=useState<string[]>([]);
@@ -173,7 +173,7 @@ function Workspace(){
      <Editor height="100%" theme="vs-dark" language={language} value={answer} onChange={v=>{setAnswer(v||'');setKeystrokes(k=>k+1)}} options={{automaticLayout:true,minimap:{enabled:true},fontSize:14,lineNumbers:'on',wordWrap:'on',folding:true,bracketPairColorization:{enabled:true},padding:{top:14},scrollBeyondLastLine:false,suggestOnTriggerCharacters:true}} onMount={editor=>{editor.addAction({id:'patima-run',label:'PATIMA: Run',keybindings:[2048+3],run:()=>void run()});editor.addAction({id:'patima-tests',label:'PATIMA: Run Tests',keybindings:[2048+1024+3],run:()=>void runTests()})}} />
     </div>
     <div className="min-h-0 bg-[#060c12]">
-     <div className="flex h-10 items-center gap-1 border-b border-white/10 px-3">{(['output','tests','environment'] as const).map(t=><button key={t} onClick={()=>setConsoleTab(t)} className={'px-3 py-2 text-xs '+(consoleTab===t?'text-emerald-300':'text-slate-600')}>{t==='output'?'Run Console':t==='tests'?'Public Tests':'Environment'}</button>)}</div>
+     <div className="flex h-10 items-center gap-1 border-b border-white/10 px-3">{(['output','tests','analysis','environment'] as const).map(t=><button key={t} onClick={()=>setConsoleTab(t)} className={'px-3 py-2 text-xs '+(consoleTab===t?'text-emerald-300':'text-slate-600')}>{t==='output'?'Run Console':t==='tests'?'Public Tests':t==='analysis'?'Analysis':'Environment'}</button>)}</div>
      <div className="h-[calc(100%-2.5rem)] overflow-auto p-4 font-mono text-xs">
       {error&&<div className="mb-4 rounded-md border border-rose-500/30 bg-rose-500/5 p-3 text-rose-300"><div className="font-semibold">Action failed</div><div className="mt-1 whitespace-pre-wrap">{error}</div><div className="mt-2 text-[11px] text-rose-400/70">The assessment did not advance. Fix the query or retry the action.</div></div>}
       {integrityNotice&&<div className="mb-4 rounded-md border border-amber-500/20 bg-amber-500/5 p-2 text-[11px] text-amber-300">Integrity event recorded: {integrityNotice}. This is telemetry and does not block Run, Run Tests, or Submit.</div>}
@@ -192,6 +192,20 @@ function Workspace(){
         <div className="mb-2 flex justify-between rounded border border-white/10 p-2"><span className="text-slate-300">Case {i+1} · {t.name}</span><span className={t.status==='AC'?'text-emerald-300':'text-rose-300'}>{t.status}</span></div>
         <TriPaneInspector testCase={t}/>
        </div>)}
+      </div>}
+      {consoleTab==='analysis'&&<div className="space-y-4 text-[11px] text-slate-400">
+       {((testResult||runResult)?.sqlAnalysis)&&<><div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded border border-white/10 p-3"><div className="text-slate-600">Time</div><div className="mt-1 text-slate-200">{(testResult||runResult)?.sqlAnalysis?.complexity?.theoreticalTime||'—'}</div></div>
+        <div className="rounded border border-white/10 p-3"><div className="text-slate-600">Space</div><div className="mt-1 text-slate-200">{(testResult||runResult)?.sqlAnalysis?.complexity?.theoreticalSpace||'—'}</div></div>
+        <div className="rounded border border-white/10 p-3"><div className="text-slate-600">Window Frame</div><div className="mt-1 text-slate-200">{(testResult||runResult)?.sqlAnalysis?.windowFrameExplicit?'Explicit':'Implicit'}</div></div>
+        <div className="rounded border border-white/10 p-3"><div className="text-slate-600">Partitions</div><div className="mt-1 text-slate-200">{(testResult||runResult)?.sqlAnalysis?.partitionKeys?.join(', ')||'None'}</div></div>
+       </div>
+       <div className="rounded border border-white/10 p-3"><div className="mb-2 font-semibold text-slate-300">Detected SQL</div><div>{(testResult||runResult)?.sqlAnalysis?.detectedClauses?.join(' · ')||'None'}</div></div>
+       <div className="rounded border border-white/10 p-3"><div className="mb-2 font-semibold text-slate-300">Why</div><div>{(testResult||runResult)?.sqlAnalysis?.complexity?.rationale}</div></div>
+       {((testResult||runResult)?.sqlAnalysis?.observations||[]).length>0&&<div className="rounded border border-amber-500/20 bg-amber-500/5 p-3"><div className="mb-2 font-semibold text-amber-300">Performance observations</div><ul className="space-y-1">{(testResult||runResult)?.sqlAnalysis?.observations?.map((x:string)=><li key={x}>• {x}</li>)}</ul></div>}
+       {((testResult||runResult)?.sqlAnalysis?.codeSmells||[]).length>0&&<div className="rounded border border-rose-500/20 bg-rose-500/5 p-3"><div className="mb-2 font-semibold text-rose-300">Code smells</div><ul className="space-y-1">{(testResult||runResult)?.sqlAnalysis?.codeSmells?.map((x:string)=><li key={x}>• {x}</li>)}</ul></div>}
+       </>}
+       {!((testResult||runResult)?.sqlAnalysis)&&<div className="text-slate-600">Run your SQL to generate structural analysis.</div>}
       </div>}
       {consoleTab==='environment'&&<div className="space-y-2 text-slate-500"><div>Runtime: <span className="text-slate-300">{testResult?.runtime?.language||runResult?.runtime?.language||'server-selected'}</span></div><div>Engine: <span className="text-slate-300">{testResult?.runtime?.engineVersion||runResult?.runtime?.engineVersion||'server-selected'}</span></div><div>CPU: <span className="text-slate-300">{testResult?.runtime?.vCpuLimit||runResult?.runtime?.vCpuLimit||'—'} vCPU</span></div><div>Memory: <span className="text-slate-300">{testResult?.runtime?.memoryLimitMb||runResult?.runtime?.memoryLimitMb||'—'} MB</span></div><div>Network: <span className="text-slate-300">disabled</span></div><div>Digest: <span className="break-all text-slate-600">{testResult?.environmentDigest||runResult?.environmentDigest||'—'}</span></div></div>}
      </div>
