@@ -1,6 +1,7 @@
 import process from 'node:process';
-import {loadEnvConfig} from '@next/env';
+import nextEnv from '@next/env';
 import pg from 'pg';
+const {loadEnvConfig}=nextEnv;
 loadEnvConfig(process.cwd());
 const {Pool}=pg;
 if(!process.env.DATABASE_URL){console.error('[PATIMA] DATABASE_URL is required for hiring tests.');process.exit(1);}
