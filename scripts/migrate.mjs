@@ -1,7 +1,10 @@
 import {readdir,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import {loadEnvConfig} from '@next/env';
 import pg from 'pg';
+
+loadEnvConfig(process.cwd());
 const {Pool}=pg;
 const databaseUrl=process.env.DIRECT_URL||process.env.DATABASE_URL;
 const migrationsDir=path.join(process.cwd(),'migrations');
