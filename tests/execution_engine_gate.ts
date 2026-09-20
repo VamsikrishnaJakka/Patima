@@ -3,7 +3,7 @@ import {evaluateEmpiricalComplexity} from '../lib/verification/harness/complexit
 import {computeEnvironmentDigest,getPinnedRuntime} from '../lib/verification/environment-digest';
 
 console.log('[GATE 1] Complexity harness rejects materially super-linear scaling for an O(n log n) target...');
-const bad=evaluateEmpiricalComplexity([{n:1000,timeMs:100},{n:10000,timeMs:1200},{n:100000,timeMs:16000}],'O(n log n)');
+const bad=evaluateEmpiricalComplexity([{n:1000,timeMs:100},{n:10000,timeMs:5000},{n:100000,timeMs:500000}],'O(n log n)');
 assert.equal(bad.passed,false);
 console.log('PASS');
 
