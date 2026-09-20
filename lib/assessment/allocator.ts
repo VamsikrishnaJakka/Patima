@@ -198,7 +198,8 @@ export async function allocateNextQuestion(
   const variantRes = await client.query(`
     SELECT v.id, v.family_id, v.difficulty_score, v.prompt_markdown, 
            v.scenario_entity, v.fixture_ddl, v.fixture_preview, v.expected_time_complexity,
-           v.expected_space_complexity, v.question_type, v.concept_rubric
+           v.expected_space_complexity, v.question_type, v.response_mode, v.answer_options,
+           v.concept_rubric
     FROM question_variants v
     JOIN question_families f ON f.id = v.family_id
     WHERE f.domain = $1
