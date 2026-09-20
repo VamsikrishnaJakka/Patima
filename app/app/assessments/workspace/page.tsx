@@ -156,13 +156,13 @@ function Workspace(){
  const previewColumns=q.fixturePreview?.columns||[];
  return <div className="h-screen overflow-hidden bg-[#050a0f] text-slate-100">
   <header className="flex h-12 items-center justify-between border-b border-white/10 bg-[#081018] px-4">
-   <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={()=>{if(!window.confirm('Leave this assessment? Your progress and answer will remain saved. The assessment timer will continue running.'))return;router.push('/app')}} className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200">← Exit</button><span className="font-semibold tracking-tight">PATIMA</span><span className="text-xs text-slate-500">{state.assessment?.title}</span><span className="text-xs text-slate-600">·</span><span className="text-xs text-slate-500">Question {q.stepIndex}/{q.totalQuestions}</span></div>
+   <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={()=>{if(!window.confirm('Leave this assessment? Your progress and answer will remain saved. The assessment timer will continue running.'))return;router.push('/app')}} className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200">← Exit</button><span className="font-semibold tracking-tight">PATIMA</span><span className="text-xs text-slate-500">{state.assessment?.title}</span><span className="text-xs text-slate-600">·</span><span className="text-xs font-medium text-emerald-300">{state.session?.experience_level}</span><span className="text-xs text-slate-600">·</span><span className="text-xs text-slate-500">Question {q.stepIndex}/{q.totalQuestions}</span></div>
    <div className="flex items-center gap-5 text-xs"><span className="text-slate-600">{language.toUpperCase()}</span><span className={seconds!==null&&seconds<180?'text-amber-300':'text-slate-400'}>{seconds!==null?Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'--:--'}</span></div>
   </header>
   <main className="grid h-[calc(100vh-6rem)] grid-cols-[34%_66%]">
    <section className="overflow-y-auto border-r border-white/10 bg-[#071019] p-6">
     <div className="mb-5">
-     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Question {q.stepIndex}</div>
+     <div className="flex items-center gap-2"><div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Question {q.stepIndex}</div><span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-500">{q.questionType==='THEORY'?'Theory':'Coding'}</span></div>
      <h1 className="mt-2 text-xl font-semibold leading-7 text-white">{state.assessment?.title||'SQL Assessment'}</h1>
     </div>
 
