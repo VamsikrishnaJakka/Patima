@@ -26,7 +26,8 @@
     "test:auth-gates": "tsx tests/auth_gates.ts",
     "test:advisory-locks": "tsx tests/advisory_lock_connection_gate.ts",
     "test:secrets": "tsx tests/secrets_environment_gate.ts",
-    "test:mutation-races": "tsx tests/mutation_race_gate.ts"
+    "test:mutation-races": "tsx tests/mutation_race_gate.ts",
+    "test:tenant-access": "tsx tests/tenant_access_gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
