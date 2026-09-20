@@ -6,7 +6,7 @@ export interface SqlStructuralAnalysis{
 }
 
 export function analyzeSqlStructure(sql:string):SqlStructuralAnalysis{
- const detected=new Set<string>(),partitionKeys:string[]=[],orderKeys:string[]=[],observations:string[]=[],codeSmells:string[];
+ const detected=new Set<string>(),partitionKeys:string[]=[],orderKeys:string[]=[],observations:string[]=[],codeSmells:string[]=[];
  let frame=false,unbounded=false,ast:any;
  try{ast=parseFirst(sql)}catch{return{complexityProfile:{theoreticalTime:'O(n)',theoreticalSpace:'O(n)',rationale:'Unparseable query.'},detectedClauses:[],partitionKeys:[],orderKeys:[],windowFrameExplicit:false,hasUnboundedPreceding:false,performanceObservations:[],codeSmells:['Syntax prevents deep structural analysis.']}};
  const raw=sql.toUpperCase();
