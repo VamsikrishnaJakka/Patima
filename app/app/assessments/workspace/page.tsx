@@ -149,25 +149,60 @@ function Workspace(){
    <div className="flex items-center gap-5 text-xs"><span className="text-slate-600">{language.toUpperCase()}</span><span className={seconds!==null&&seconds<180?'text-amber-300':'text-slate-400'}>{seconds!==null?Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'--:--'}</span></div>
   </header>
   <main className="grid h-[calc(100vh-6rem)] grid-cols-[34%_66%]">
-   <section className="overflow-y-auto border-r border-white/10 bg-[#071019] p-5">
-    <div className="text-xs uppercase tracking-widest text-emerald-300">Problem</div>
-    <div className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">{q.promptMarkdown}</div>
-    <div className="mt-6 rounded-lg border border-white/10 bg-black/20 p-4">
-     <div className="text-xs uppercase tracking-widest text-slate-500">Constraints & execution guidance</div>
-     <div className="mt-3 space-y-2 text-xs text-slate-400">
-      {q.expectedTimeComplexity&&<p><span className="text-slate-600">Expected time:</span> {q.expectedTimeComplexity}</p>}
-      {q.expectedSpaceComplexity&&<p><span className="text-slate-600">Expected space:</span> {q.expectedSpaceComplexity}</p>}
-      <p><span className="text-slate-600">Task type:</span> {q.questionType||'SQL coding'}</p>
-      <p><span className="text-slate-600">Execution:</span> server timeout and memory limits are authoritative.</p>
-      <p><span className="text-slate-600">Testing:</span> use <b>Run</b> for the current example, then <b>Run Tests</b> for all visible cases.</p>
-      <p><span className="text-slate-600">Submission:</span> Submit Step runs authoritative verification, including hidden tests, and advances only after verification passes.</p>
+   <section className="overflow-y-auto border-r border-white/10 bg-[#071019] p-6">
+    <div className="mb-5">
+     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Question {q.stepIndex}</div>
+     <h1 className="mt-2 text-xl font-semibold leading-7 text-white">{state.assessment?.title||'SQL Assessment'}</h1>
+    </div>
+
+    <div className="rounded-xl border border-white/10 bg-black/20 p-5">
+     <div className="text-sm font-semibold text-white">Problem</div>
+     <div className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-300">{q.promptMarkdown}</div>
+    </div>
+
+    <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-5">
+     <div className="text-sm font-semibold text-white">Constraints</div>
+     <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+      <div className="flex justify-between gap-4"><span className="text-slate-500">Expected time complexity</span><span className="font-mono text-slate-200">{q.expectedTimeComplexity||'Not specified'}</span></div>
+      <div className="flex justify-between gap-4"><span className="text-slate-500">Expected space complexity</span><span className="font-mono text-slate-200">{q.expectedSpaceComplexity||'Not specified'}</span></div>
+      <div className="flex justify-between gap-4"><span className="text-slate-500">Question type</span><span className="text-slate-200">{q.questionType||'SQL coding'}</span></div>
+     </div>
+     <div className="mt-4 rounded-lg bg-white/[0.03] px-3 py-3 text-xs leading-5 text-slate-400">
+      <span className="font-medium text-slate-300">How to solve:</span> write one SQL answer using the table and columns below. Use <b className="text-slate-200">Run</b> to inspect your query, <b className="text-slate-200">Run Tests</b> to check visible cases, and <b className="text-slate-200">Submit Step</b> when ready.
      </div>
     </div>
-    <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
-     <div className="flex items-center justify-between"><span className="text-xs uppercase tracking-widest text-slate-500">Database schema</span><button type="button" onClick={()=>{setSchema(null);void loadSchema()}} className="text-xs text-slate-600 hover:text-slate-300">refresh</button></div>
-     {schema?<div className="mt-3 space-y-3"><div className="rounded-md border border-white/10 bg-black/30 px-3 py-2"><div className="text-[10px] uppercase tracking-widest text-slate-500">Available table</div><div className="mt-1 font-mono text-sm font-semibold text-slate-200">{schema.tableName}</div></div><div><div className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">Columns</div><div className="overflow-hidden rounded-md border border-white/10"><table className="w-full text-left text-xs"><thead><tr className="bg-white/[0.03]"><th className="px-3 py-2 text-slate-500">Column</th><th className="px-3 py-2 text-right text-slate-500">Type</th></tr></thead><tbody>{schema.columns?.map((c:any)=><tr key={c.name}><td className="border-t border-white/5 px-3 py-2 font-mono text-slate-300">{c.name}</td><td className="border-t border-white/5 px-3 py-2 text-right font-mono text-slate-500">{c.type}</td></tr>)}</tbody></table></div></div><div><div className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">Sample rows</div><div className="overflow-x-auto rounded-md border border-white/10"><table className="w-full text-left text-[11px]"><thead><tr className="bg-white/[0.03]">{schema.columns?.map((c:any)=><th key={c.name} className="border-b border-white/10 px-2 py-2 font-mono text-slate-500">{c.name}</th>)}</tr></thead><tbody>{schema.sampleData?.slice(0,6).map((row:any,i:number)=><tr key={i}>{schema.columns?.map((c:any)=><td key={c.name} className="border-b border-white/5 px-2 py-1 font-mono text-slate-500">{String(row[c.name]??'NULL')}</td>)}</tr>)}</tbody></table></div></div></div>:previewColumns.length?<div className="mt-3 space-y-2"><div className="text-sm text-slate-300">{q.scenarioEntity}</div><div className="space-y-1">{previewColumns.map(name=><div key={name} className="flex justify-between text-xs"><span className="text-slate-400">{name}</span><span className="text-slate-600">loading type…</span></div>)}</div><p className="text-[11px] text-slate-600">Column names and sample rows are ready. Loading exact database types…</p></div>:<p className="mt-3 text-xs text-slate-600">Loading schema…</p>}
+
+    <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-5">
+     <div className="text-sm font-semibold text-white">Database</div>
+     <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+      <div className="text-[10px] uppercase tracking-widest text-emerald-400/70">Table name</div>
+      <div className="mt-1 font-mono text-base font-semibold text-emerald-200">{schema?.tableName||q.scenarioEntity||'Loading…'}</div>
+     </div>
+
+     <div className="mt-4">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Schema</div>
+      <div className="overflow-hidden rounded-lg border border-white/10">
+       <table className="w-full text-left text-xs">
+        <thead><tr className="bg-white/[0.03]"><th className="px-3 py-2 font-medium text-slate-500">Column</th><th className="px-3 py-2 text-right font-medium text-slate-500">Type</th></tr></thead>
+        <tbody>
+         {(schema?.columns||q.fixturePreview?.columns?.map((name:string)=>({name,type:'—'}))||[]).map((col:any)=><tr key={col.name}><td className="border-t border-white/5 px-3 py-2 font-mono text-slate-300">{col.name}</td><td className="border-t border-white/5 px-3 py-2 text-right font-mono text-slate-500">{col.type}</td></tr>)}
+        </tbody>
+       </table>
+      </div>
+     </div>
+
+     <div className="mt-4">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sample data</div>
+      <div className="overflow-x-auto rounded-lg border border-white/10">
+       <table className="w-full text-left text-[11px]">
+        <thead><tr className="bg-white/[0.03]">{(schema?.columns||q.fixturePreview?.columns?.map((name:string)=>({name}))||[]).map((col:any)=><th key={col.name} className="border-b border-white/10 px-3 py-2 font-mono font-medium text-slate-500">{col.name}</th>)}</tr></thead>
+        <tbody>
+         {(schema?.sampleData||q.fixturePreview?.rows||[]).slice(0,8).map((row:any,i:number)=><tr key={i}>{(schema?.columns||q.fixturePreview?.columns?.map((name:string)=>({name}))||[]).map((col:any,j:number)=><td key={col.name} className="border-b border-white/5 px-3 py-2 font-mono text-slate-400">{String(schema?row[col.name]??'NULL':row[j]??'NULL')}</td>)}</tr>)}
+        </tbody>
+       </table>
+      </div>
+     </div>
     </div>
-    {q.fixturePreview&&<details className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4"><summary className="cursor-pointer text-xs uppercase tracking-widest text-slate-500">Sample data</summary><div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr>{q.fixturePreview.columns.map(c=><th key={c} className="border-b border-white/10 px-2 py-2 text-slate-600">{c}</th>)}</tr></thead><tbody>{q.fixturePreview.rows.slice(0,8).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j} className="border-b border-white/5 px-2 py-1 text-slate-500">{String(v??'NULL')}</td>)}</tr>)}</tbody></table></div></details>}
    </section>
    <section className="grid min-h-0 grid-rows-[1fr_35%]">
     <div className="min-h-0 border-b border-white/10">
