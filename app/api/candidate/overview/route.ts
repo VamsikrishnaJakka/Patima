@@ -22,7 +22,7 @@ export async function GET(){
         const active=await client.query(`
           SELECT id,domain,experience_level,current_step,selected_question_count,expires_at,target_role
           FROM assessment_sessions
-          WHERE user_id=$1 AND status='IN_PROGRESS'
+          WHERE user_id=$1 AND status='IN_PROGRESS' AND expires_at>clock_timestamp()
           ORDER BY started_at DESC LIMIT 1
         `,[s.userId]);
         const evidence=states.rows.map((x:any)=>({
