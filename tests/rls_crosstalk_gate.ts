@@ -40,7 +40,11 @@ async function prepareRlsRole(){
 async function cleanupRlsRole(temporary:boolean){
  if(!temporary)return;
  const client=await runtimePool.connect();
- try{await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);}finally{client.release();}
+ try{
+  await client.query("REASSIGN OWNED BY "+TEST_RLS_ROLE+" TO CURRENT_USER");
+  await client.query("DROP OWNED BY "+TEST_RLS_ROLE);
+  await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
+ }finally{client.release();}
 }
 
 async function withRlsContext<T>(role:string,userId:string,employerAccountId:string|undefined,callback:(client:import("pg").PoolClient)=>Promise<T>){
