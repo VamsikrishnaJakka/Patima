@@ -8,7 +8,7 @@ import {TriPaneInspector} from './tri-pane-inspector';
 type FixturePreview={columns:string[];rows:(string|number|null)[][]};
 type Question={
   variantId:string;stepIndex:number;promptMarkdown:string;scenarioEntity:string;fixtureDdl:string;
-  fixturePreview?:FixturePreview;totalQuestions:number;remainingTimeSeconds:number;draftResponse?:string;expectedTimeComplexity?:string|null;expectedSpaceComplexity?:string|null;questionType?:string|null;conceptRubric?:unknown;
+  fixturePreview?:FixturePreview;totalQuestions:number;remainingTimeSeconds:number;draftResponse?:string;expectedTimeComplexity?:string|null;expectedSpaceComplexity?:string|null;questionType?:string|null;responseMode?:'CODE'|'MCQ'|'TEXT';answerOptions?:string[];conceptRubric?:unknown;
 };
 type State={closed:boolean;status?:string;assessment?:{slug:string;title:string;description:string};question?:Question;session?:{experience_level:string;current_step:number;expires_at:string}};
 type RunResult={verdict:string;allPassed:boolean;executionTimeMs:number;runtimeMs?:number;peakMemoryKb:number|null;output?:string;expectedOutput?:string;errorMessage?:string|null;testCases?:any[];cases?:any[];summary?:{passed:number;total:number;publicPassed:number;publicTotal:number;hiddenPassed:number;hiddenTotal:number};publicTestsPassed?:number;publicTestsTotal?:number;runtime?:{language:string;engineVersion:string;architecture:string;vCpuLimit:number;memoryLimitMb:number;wallClockTimeoutMs:number;networkEnabled:boolean};environmentDigest?:string;sqlAnalysis?:{singleStatement:boolean;allowedTablesOnly:boolean;detectedClauses:string[];performanceObservation?:string;complexity?:{theoreticalTime:string;theoreticalSpace:string;rationale:string};partitionKeys?:string[];orderKeys?:string[];windowFrameExplicit?:boolean;hasUnboundedPreceding?:boolean;observations?:string[];codeSmells?:string[]}};
@@ -18,7 +18,7 @@ function Workspace(){
  const[state,setState]=useState<State|null>(null);
  const[answer,setAnswer]=useState('');
  const[schema,setSchema]=useState<any|null>(null);
- const[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[testing,setTesting]=useState(false),[submitting,setSubmitting]=useState(false);
+ const[loading,setLoading]=useState(true),[running,setRunning]=useState(false),[testing,setTesting]=useState(false),[submitting,setSubmitting]=useState(false),[skipping,setSkipping]=useState(false);
  const[error,setError]=useState('');
  const[integrityNotice,setIntegrityNotice]=useState('');
  const[seconds,setSeconds]=useState<number|null>(null);
@@ -119,9 +119,20 @@ function Workspace(){
   }catch(e){setError(e instanceof Error?e.message:'Test run failed')}finally{setTesting(false)}
  }
 
+ async function skip(){
+  if(!state?.question||submitting||skipping)return;
+  if(!window.confirm('Skip this question? You can continue to the next question.'))return;
+  setSkipping(true);setError('');
+  try{
+   const r=await fetch('/api/assessments/skip-step',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,variantId:state.question.variantId})});
+   const data=await r.json();if(!r.ok)throw new Error(data.message||data.error||'Unable to skip question');
+   if(data.status==='COMPLETED'){setState({...state,closed:true,status:'VERIFIED',question:undefined});return;}
+   setState({...state,question:data.nextQuestion});setSeconds(data.nextQuestion.remainingTimeSeconds);setStartedAt(Date.now());setAnswer('');setRunResult(null);setTestResult(null);setSchema(null);setConsoleTab('output');void loadSchema();
+  }catch(e){setError(e instanceof Error?e.message:'Unable to skip question')}finally{setSkipping(false)}
+ }
+
  async function submit(){
-  if(!state?.question||!answer.trim()||submitting)return;
-  if(testResult&&testResult.publicTestsTotal&&testResult.publicTestsPassed!==testResult.publicTestsTotal){setError('Run Tests must pass all visible tests before submission.');setConsoleTab('tests');return}
+  if(!state?.question||!answer.trim()||submitting||skipping)return;
   setSubmitting(true);setError('');
   try{
    const r=await fetch('/api/assessments/submit-step',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -206,7 +217,15 @@ function Workspace(){
    </section>
    <section className="grid min-h-0 grid-rows-[1fr_35%]">
     <div className="min-h-0 border-b border-white/10">
-     <Editor height="100%" theme="vs-dark" language={language} value={answer} onChange={v=>{setAnswer(v||'');setKeystrokes(k=>k+1)}} options={{automaticLayout:true,minimap:{enabled:true},fontSize:14,lineNumbers:'on',wordWrap:'on',folding:true,bracketPairColorization:{enabled:true},padding:{top:14},scrollBeyondLastLine:false,suggestOnTriggerCharacters:true}} onMount={editor=>{editor.addAction({id:'patima-run',label:'PATIMA: Run',keybindings:[2048+3],run:()=>void run()});editor.addAction({id:'patima-tests',label:'PATIMA: Run Tests',keybindings:[2048+1024+3],run:()=>void runTests()})}} />
+     {q.questionType==='THEORY' ? (
+      <div className="h-full overflow-y-auto bg-[#071019] p-8">
+       <div className="mx-auto max-w-3xl">
+        <div className="text-[11px] uppercase tracking-widest text-slate-500">{q.responseMode==='MCQ'?'Multiple choice':'Theory question'}</div>
+        <div className="mt-5 text-sm leading-7 text-slate-300">{q.responseMode==='MCQ' ? 'Choose one answer.' : 'Write your answer in your own words.'}</div>
+        {q.responseMode==='MCQ' ? <div className="mt-6 space-y-3">{(q.answerOptions||[]).map(option=><button key={option} type="button" onClick={()=>setAnswer(option)} className={'block w-full rounded-lg border px-4 py-4 text-left text-sm transition '+(answer===option?'border-emerald-400 bg-emerald-400/10 text-emerald-200':'border-white/10 bg-black/20 text-slate-300 hover:border-white/20')}>{option}</button>)}</div> : <textarea value={answer} onChange={e=>{setAnswer(e.target.value);setKeystrokes(k=>k+1)}} className="mt-6 h-64 w-full resize-none rounded-lg border border-white/10 bg-black/30 p-4 text-sm leading-6 text-slate-200 outline-none focus:border-emerald-500/40" placeholder="Write your answer here..." />}
+       </div>
+      </div>
+     ) : <Editor height="100%" theme="vs-dark" language={language} value={answer} onChange={v=>{setAnswer(v||'');setKeystrokes(k=>k+1)}} options={{automaticLayout:true,minimap:{enabled:true},fontSize:14,lineNumbers:'on',wordWrap:'on',folding:true,bracketPairColorization:{enabled:true},padding:{top:14},scrollBeyondLastLine:false,suggestOnTriggerCharacters:true}} onMount={editor=>{editor.addAction({id:'patima-run',label:'PATIMA: Run',keybindings:[2048+3],run:()=>void run()});editor.addAction({id:'patima-tests',label:'PATIMA: Run Tests',keybindings:[2048+1024+3],run:()=>void runTests()})}} />}
     </div>
     <div className="min-h-0 bg-[#060c12]">
      <div className="flex h-10 items-center gap-1 border-b border-white/10 px-3">{(['output','tests','analysis','environment'] as const).map(t=><button key={t} onClick={()=>setConsoleTab(t)} className={'px-3 py-2 text-xs '+(consoleTab===t?'text-emerald-300':'text-slate-600')}>{t==='output'?'Run Console':t==='tests'?'Public Tests':t==='analysis'?'Analysis':'Environment'}</button>)}</div>
@@ -250,9 +269,10 @@ function Workspace(){
   <footer className="flex h-14 items-center justify-between border-t border-white/10 bg-[#081018] px-4">
    <div className="flex min-w-0 items-center gap-4 text-[11px] text-slate-600"><span>{saveState==='saving'?'Saving…':saveState==='error'?'Save failed':'Draft saved'}</span></div>
    <div className="flex items-center gap-2">
-    <button type="button" onClick={()=>void run()} disabled={running||!answer.trim()} title="Execute the current answer without progressing" className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-40">{running?'Running…':<>Run <span className="ml-1 text-slate-600">Ctrl+Enter</span></>}</button>
-    <button type="button" onClick={()=>void runTests()} disabled={testing||!answer.trim()} title="Run all visible/public tests" className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 hover:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-40">{testing?'Testing…':<>Run Tests <span className="ml-1 text-emerald-500/60">Ctrl+Shift+Enter</span></>}</button>
-    <button type="button" onClick={()=>void submit()} disabled={submitting||!answer.trim()||seconds===0||(!testResult?.publicTestsTotal?false:!publicPassed)} title={publicPassed?'Submit for authoritative server verification':'Run Tests and pass all visible tests before submitting'} className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">{submitting?'Verifying…':'Submit Step →'}</button>
+    {q.questionType!=='THEORY'&&<><button type="button" onClick={()=>void run()} disabled={running||!answer.trim()} title="Execute the current answer without progressing" className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-40">{running?'Running…':<>Run <span className="ml-1 text-slate-600">Ctrl+Enter</span></>}</button>
+    <button type="button" onClick={()=>void runTests()} disabled={testing||!answer.trim()} title="Run all visible/public tests" className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 hover:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-40">{testing?'Testing…':<>Run Tests <span className="ml-1 text-emerald-500/60">Ctrl+Shift+Enter</span></>}</button></>}
+    <button type="button" onClick={()=>void skip()} disabled={submitting||skipping||seconds===0} className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-40">{skipping?'Skipping…':'Skip'}</button>
+    <button type="button" onClick={()=>void submit()} disabled={submitting||skipping||!answer.trim()||seconds===0} title="Submit this response and continue to the next question" className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">{submitting?'Submitting…':'Submit Step →'}</button>
    </div>
   </footer>
  </div>;
