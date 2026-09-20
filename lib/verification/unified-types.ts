@@ -28,7 +28,7 @@ export interface UnifiedEngineResponse{
   runtimeMs:number;
   summary:{passed:number;total:number;publicPassed:number;publicTotal:number;hiddenPassed:number;hiddenTotal:number};
   cases:UnifiedCase[];
-  sqlAnalysis?:{singleStatement:boolean;allowedTablesOnly:boolean;detectedClauses:string[];performanceObservation?:string};
+  sqlAnalysis?:{singleStatement:boolean;allowedTablesOnly:boolean;detectedClauses:string[];performanceObservation?:string;complexity?:{theoreticalTime:'O(n)'|'O(n log n)'|'O(n^2)';theoreticalSpace:'O(1)'|'O(n)';rationale:string};partitionKeys?:string[];orderKeys?:string[];windowFrameExplicit?:boolean;hasUnboundedPreceding?:boolean;observations?:string[];codeSmells?:string[]};
   executionDigest:string;
   nextStepAvailable:boolean;
 }
