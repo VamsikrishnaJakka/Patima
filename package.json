@@ -23,7 +23,8 @@
     "test:db-security": "tsx tests/database_security_gate.ts",
     "test:error-shielding": "tsx tests/error_shielding_gate.ts",
     "test:session-start-race": "tsx tests/session_start_race_gate.ts",
-    "test:auth-gates": "tsx tests/auth_gates.ts"
+    "test:auth-gates": "tsx tests/auth_gates.ts",
+    "test:advisory-locks": "tsx tests/advisory_lock_connection_gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
