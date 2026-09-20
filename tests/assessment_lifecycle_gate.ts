@@ -226,7 +226,7 @@ async function run(){
     try{
       await allocateNextQuestion(client,{
         sessionId:sessionB,
-        userId,
+        userId:userB,
         submittedCode:'SELECT 1',
         isCorrect:true,
         durationSeconds:20,
