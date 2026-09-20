@@ -3,6 +3,7 @@
 import Editor from '@monaco-editor/react';
 import {Suspense,useCallback,useEffect,useMemo,useState} from 'react';
 import {useRouter,useSearchParams} from 'next/navigation';
+import {TriPaneInspector} from './tri-pane-inspector';
 
 type FixturePreview={columns:string[];rows:(string|number|null)[][]};
 type Question={
