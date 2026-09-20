@@ -22,39 +22,29 @@ const EMPLOYER_ACCOUNT="e0000000-0000-0000-0000-000000000001";
 
 const TEST_RLS_ROLE="patima_rls_gate";
 
-async function cleanupTemporaryRole(){
- const client=await runtimePool.connect();
- try{
-  await client.query("REASSIGN OWNED BY "+TEST_RLS_ROLE+" TO CURRENT_USER");
-  await client.query("DROP OWNED BY "+TEST_RLS_ROLE);
-  await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
- }finally{client.release();}
-}
-
 async function prepareRlsRole(){
  const client=await runtimePool.connect();
  try{
-  const meta=await client.query("SELECT current_user,session_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user");
+  const meta=await client.query("SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user");
   const row=meta.rows[0];
   if(!row)throw new Error("Unable to inspect database role.");
-  if(!row.rolsuper&&!row.rolbypassrls)return {role:row.current_user,temporary:false};
-  await client.query("REASSIGN OWNED BY "+TEST_RLS_ROLE+" TO CURRENT_USER");
-  await client.query("DROP OWNED BY "+TEST_RLS_ROLE);
-  await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
+
+  const existing=await client.query("SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=$1",[TEST_RLS_ROLE]);
+  if(existing.rowCount){
+   if(existing.rows[0].rolsuper||existing.rows[0].rolbypassrls){
+    throw new Error("Existing RLS test role is privileged; refuse to run isolation gate.");
+   }
+   return {role:TEST_RLS_ROLE};
+  }
+
+  if(!row.rolsuper){
+   throw new Error("RLS test role is missing and current database role is not a superuser; create a dedicated NOSUPERUSER NOBYPASSRLS role for this gate.");
+  }
+
   await client.query("CREATE ROLE "+TEST_RLS_ROLE+" NOSUPERUSER NOBYPASSRLS NOLOGIN");
   await client.query("GRANT USAGE ON SCHEMA public TO "+TEST_RLS_ROLE);
   await client.query("GRANT SELECT ON assessment_sessions TO "+TEST_RLS_ROLE);
-  return {role:TEST_RLS_ROLE,temporary:true};
- }finally{client.release();}
-}
-
-async function cleanupRlsRole(temporary:boolean){
- if(!temporary)return;
- const client=await runtimePool.connect();
- try{
-  await client.query("REASSIGN OWNED BY "+TEST_RLS_ROLE+" TO CURRENT_USER");
-  await client.query("DROP OWNED BY "+TEST_RLS_ROLE);
-  await client.query("DROP ROLE IF EXISTS "+TEST_RLS_ROLE);
+  return {role:TEST_RLS_ROLE};
  }finally{client.release();}
 }
 
@@ -161,7 +151,8 @@ async function run(){
   }
   console.log("PASS: 8 deterministic concurrent transactions remained fully isolated.");
  }finally{
-  await cleanupRlsRole(rlsRole.temporary);
+  // The dedicated test role is intentionally persistent so the gate never
+  // needs to reassign or drop objects owned by a role it does not administer.
  }
 
  await runtimePool.end();
