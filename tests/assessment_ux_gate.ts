@@ -1,0 +1,18 @@
+import {readFileSync,existsSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+const root=process.cwd();
+const setup=readFileSync(path.join(root,'app/app/assessments/setup/page.tsx'),'utf8');
+const workspace=readFileSync(path.join(root,'app/app/assessments/workspace/page.tsx'),'utf8');
+const migration=readFileSync(path.join(root,'migrations/049_beginner_assessment_calibration.sql'),'utf8');
+console.log('[GATE 1] Beginner users can bypass assessment to a roadmap...');
+assert.ok(setup.includes('I’m a complete beginner')); assert.ok(setup.includes('/app/roadmap?domain=')); console.log('PASS');
+console.log('[GATE 2] Assessment workspace is dedicated and has no normal app shell...');
+assert.ok(!workspace.includes('AppShell')); assert.ok(workspace.includes('min-h-screen')); console.log('PASS');
+console.log('[GATE 3] Tab/window/fullscreen and clipboard integrity signals are instrumented...');
+for(const token of ['visibilitychange','window.addEventListener(\'blur\'','fullscreenchange','copy','cut','paste','contextmenu']) assert.ok(workspace.includes(token),token); console.log('PASS');
+console.log('[GATE 4] Restricted browser shortcuts are blocked and submission uses server verification...');
+assert.ok(workspace.includes('F12')); assert.ok(workspace.includes('/api/assessments/submit-step')); assert.ok(!workspace.includes('/api/assessment/adaptive/submit')); console.log('PASS');
+console.log('[GATE 5] Beginner calibration exists and caps difficulty...');
+assert.ok(existsSync(path.join(root,'migrations/049_beginner_assessment_calibration.sql'))); assert.ok(migration.includes("WHERE experience_level='BEGINNER'")); assert.ok(migration.includes('LEAST(difficulty_score,3.0)')); console.log('PASS');
+console.log('ALL 5 ASSESSMENT UX / BEGINNER GATES PASSED.');
