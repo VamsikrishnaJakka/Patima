@@ -36,7 +36,9 @@ export async function GET(request:Request){
         const tableName=available.includes(requestedTable)?requestedTable:(available.length===1?available[0]:available.find(x=>x==='customer_orders')||available[0]);
         if(!tableName) throw new Error('FIXTURE_CONTAINS_NO_TABLE');
         const desc=await conn.runAndReadAll(`DESCRIBE ${tableName}`);
-        const preview=await conn.runAndReadAll(`SELECT * FROM ${tableName} LIMIT 8`);
+        const columns=desc.getRowObjects() as any[];
+        const previewSelect=columns.map(x=>`CAST("${String(x.column_name).replace(/"/g,'""')}" AS VARCHAR) AS "${String(x.column_name).replace(/"/g,'""')}"`).join(', ');
+        const preview=await conn.runAndReadAll(`SELECT ${previewSelect} FROM "${tableName.replace(/"/g,'""')}" LIMIT 8`);
         return NextResponse.json({
           tableName,
           columns:desc.getRowObjects().map((x:any)=>({name:String(x.column_name),type:String(x.column_type)})),
