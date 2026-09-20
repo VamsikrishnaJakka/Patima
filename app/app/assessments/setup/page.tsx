@@ -30,13 +30,17 @@ function Setup(){
  const[level,setLevel]=useState('INTERMEDIATE');
  const[count,setCount]=useState(15);
  const[loading,setLoading]=useState(false),[error,setError]=useState('');
+ const[active,setActive]=useState<{sessionId:string;experienceLevel:string;currentStep:number;questionCount:number}|null>(null);
  const minutes=useMemo(()=>duration(level,count),[level,count]);
  const start=async()=>{
   setLoading(true);setError('');
   try{
    const res=await fetch('/api/assessment/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,experienceLevel:level,questionCount:count})});
    const data=await res.json();
-   if(!res.ok)throw new Error(data.error||'Unable to start assessment');
+   if(!res.ok){
+    if(data.error==='SESSION_ALREADY_ACTIVE'&&data.sessionId){setActive({sessionId:data.sessionId,experienceLevel:data.experienceLevel||'UNKNOWN',currentStep:Number(data.currentStep||1),questionCount:Number(data.questionCount||0)});throw new Error(data.message||'An active assessment already exists.');}
+    throw new Error(data.message||data.error||'Unable to start assessment');
+   }
    router.push(`/app/assessments/workspace?session=${encodeURIComponent(data.sessionId)}`);
   }catch(e){setError(e instanceof Error?e.message:'Unable to start assessment');setLoading(false)}
  };
@@ -69,7 +73,7 @@ function Setup(){
    <div className="mt-4 rounded-lg border border-white/10 bg-slate-950/40 p-4 text-xs leading-5 text-slate-500">
     <span className="font-medium text-slate-300">Selected:</span> {level[0]+level.slice(1).toLowerCase()} · {count} questions · {minutes} minutes
    </div>
-   {error&&<p className="mt-4 text-sm text-rose-300" role="alert">{error}</p>}
+   {error&&<div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-950/10 p-4" role="alert"><p className="text-sm text-amber-200">{error}</p>{active&&<div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={()=>router.push(`/app/assessments/workspace?session=${encodeURIComponent(active.sessionId)}`)} className="rounded-md border border-emerald-500/30 px-3 py-2 text-xs text-emerald-300">Resume active assessment →</button><button type="button" onClick={async()=>{setLoading(true);try{await fetch('/api/assessment/abandon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:active.sessionId})});setActive(null);setError('The previous active assessment was exited. You can start this assessment now.')}finally{setLoading(false)}}} className="rounded-md border border-white/10 px-3 py-2 text-xs text-slate-400">Exit previous assessment</button></div>}</div>
    <button onClick={start} disabled={loading} className="btn-primary mt-6 w-full">{loading?'Preparing your assessment…':'Start assessment →'}</button>
   </div>
  </div></AppShell>;
