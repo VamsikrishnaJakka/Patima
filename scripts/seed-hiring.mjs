@@ -21,6 +21,5 @@ try{
  for(const [id,slug] of nodes.slice(0,2)){await pool.query(`INSERT INTO user_capability_states(user_id,capability_node_id,state,last_demonstrated_at,last_observed_at,evidence_count) VALUES($1,$2,'DEMONSTRATED',clock_timestamp()-INTERVAL '2 days',clock_timestamp(),1) ON CONFLICT(user_id,capability_node_id) DO UPDATE SET state='DEMONSTRATED',last_demonstrated_at=EXCLUDED.last_demonstrated_at,last_observed_at=EXCLUDED.last_observed_at,evidence_count=GREATEST(user_capability_states.evidence_count,1)`,[candidateId,id]);await pool.query(`INSERT INTO evidence_records(user_id,capability_node_id,verification_tier,summary,context,artifact_code,test_trace,peer_review_summary,artifact_sha256,merkle_root,attestation_signature) SELECT $1,$2,'CLIENT_EVALUATED',$3,'Controlled PATIMA verification session','def example():\n    return True','[]'::jsonb,NULL,NULL,NULL,NULL WHERE NOT EXISTS (SELECT 1 FROM evidence_records WHERE user_id=$1 AND capability_node_id=$2)`,[candidateId,id,`Demonstrated ${slug} in an isolated verification session.`]);}
  await pool.query('COMMIT');
  console.log('[PATIMA] Hiring verification seed ready.');
- console.log(`[PATIMA] Local candidate: candidate@patima.test / ${candidatePassword}`);
- console.log(`[PATIMA] Local employer: recruiter@patima.test / ${employerPassword}`);
-}catch(error){await pool.query('ROLLBACK');throw error;}finally{await pool.end();}
+ console.log('[PATIMA] Local candidate seed ready: candidate@patima.test');
+ console.log('[PATIMA] Local employer seed ready: recruiter@patima.test');
