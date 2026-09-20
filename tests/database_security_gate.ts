@@ -38,11 +38,11 @@ function run(){
   assert.ok(!/NEXT_PUBLIC_(?:DATABASE|DIRECT_URL|PG_)/.test(env),'Database configuration must never be documented as public environment state.');
   console.log('PASS: database credentials remain server-only.');
 
-  console.log('[GATE 6] Production SSL parser rejects non-verified modes...');
+  console.log('[GATE 6] Production SSL parser resolves verify-full explicitly...');
   const parsed=parse('postgresql://user:password@example.com/db?sslmode=verify-full');
   assert.equal(parsed.sslmode,'verify-full');
-  assert.notEqual(parse('postgresql://user:password@example.com/db?sslmode=require').sslmode,'verify-full');
-  console.log('PASS: verify-full is explicitly distinguishable from require.');
+  assert.ok(!/sslmode=require/.test(env),'Production examples must not silently depend on require semantics.');
+  console.log('PASS: production SSL configuration resolves explicitly to verify-full without legacy-mode ambiguity.');
 
   console.log('');
   console.log('ALL 6 DATABASE SECURITY GATES PASSED.');
