@@ -1,7 +1,6 @@
 import {Pool, PoolClient, QueryResultRow} from 'pg';
-import nextEnv from '@next/env';
+import {loadEnvConfig} from '@next/env';
 
-const {loadEnvConfig} = nextEnv;
 loadEnvConfig(process.cwd());
 
 const isHostedRuntime=process.env.VERCEL==='1'||process.env.NODE_ENV==='production';
