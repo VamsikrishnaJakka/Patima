@@ -211,8 +211,7 @@ function Workspace(){
     <div className="min-h-0 bg-[#060c12]">
      <div className="flex h-10 items-center gap-1 border-b border-white/10 px-3">{(['output','tests','analysis','environment'] as const).map(t=><button key={t} onClick={()=>setConsoleTab(t)} className={'px-3 py-2 text-xs '+(consoleTab===t?'text-emerald-300':'text-slate-600')}>{t==='output'?'Run Console':t==='tests'?'Public Tests':t==='analysis'?'Analysis':'Environment'}</button>)}</div>
      <div className="h-[calc(100%-2.5rem)] overflow-auto p-4 font-mono text-xs">
-      {error&&<div className="mb-4 rounded-md border border-rose-500/30 bg-rose-500/5 p-3 text-rose-300"><div className="font-semibold">Action failed</div><div className="mt-1 whitespace-pre-wrap">{error}</div><div className="mt-2 text-[11px] text-rose-400/70">The assessment did not advance. Fix the query or retry the action.</div></div>}
-      {integrityNotice&&<div className="mb-4 rounded-md border border-amber-500/20 bg-amber-500/5 p-2 text-[11px] text-amber-300">Integrity event recorded: {integrityNotice}. This is telemetry and does not block Run, Run Tests, or Submit.</div>}
+      {error&&<div className="mb-4 rounded-md border border-rose-500/30 bg-rose-500/5 p-3 text-rose-300"><div className="font-semibold">Action failed</div><div className="mt-1 whitespace-pre-wrap">{error}</div></div>}
       {consoleTab==='output'&&<div>
        {!runResult&&!error&&<div className="text-slate-600">Run your SQL to execute it against the assessment fixture.</div>}
        {runResult&&<div>
