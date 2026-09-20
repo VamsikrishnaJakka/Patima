@@ -78,9 +78,14 @@ function Workspace(){
 
  const loadSchema=useCallback(async()=>{
   if(!state?.question)return;
+  const key='patima:schema:'+state.question.variantId;
+  try{
+   const cached=sessionStorage.getItem(key);
+   if(cached){setSchema(JSON.parse(cached));return;}
+  }catch{}
   try{
    const r=await fetch('/api/assessments/workspace/schema?sessionId='+encodeURIComponent(sessionId)+'&variantId='+encodeURIComponent(state.question.variantId),{cache:'no-store'});
-   if(r.ok)setSchema(await r.json());
+   if(r.ok){const data=await r.json();setSchema(data);try{sessionStorage.setItem(key,JSON.stringify(data));}catch{}}
   }catch{}
  },[sessionId,state?.question]);
 
@@ -127,9 +132,10 @@ function Workspace(){
 
  const q=state?.question;if(!q)return null;
  const publicPassed=testResult?.publicTestsTotal?testResult.publicTestsPassed===testResult.publicTestsTotal:false;
+ const previewColumns=q.fixturePreview?.columns||[];
  return <div className="h-screen overflow-hidden bg-[#050a0f] text-slate-100">
   <header className="flex h-12 items-center justify-between border-b border-white/10 bg-[#081018] px-4">
-   <div className="flex items-center gap-4"><span className="font-semibold tracking-tight">PATIMA</span><span className="text-xs text-slate-500">{state.assessment?.title}</span><span className="text-xs text-slate-600">·</span><span className="text-xs text-slate-500">Question {q.stepIndex}/{q.totalQuestions}</span></div>
+   <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={()=>{if(window.confirm('Exit this assessment? Your current answer is autosaved locally, but this assessment will not be submitted.'))router.push('/app/assessments')}} className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200">← Exit</button><span className="font-semibold tracking-tight">PATIMA</span><span className="text-xs text-slate-500">{state.assessment?.title}</span><span className="text-xs text-slate-600">·</span><span className="text-xs text-slate-500">Question {q.stepIndex}/{q.totalQuestions}</span></div>
    <div className="flex items-center gap-5 text-xs"><span className="text-slate-600">{language.toUpperCase()}</span><span className={seconds!==null&&seconds<180?'text-amber-300':'text-slate-400'}>{seconds!==null?Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'--:--'}</span></div>
   </header>
   <main className="grid h-[calc(100vh-6rem)] grid-cols-[34%_66%]">
@@ -141,8 +147,8 @@ function Workspace(){
      <div className="mt-3 space-y-2 text-xs text-slate-500"><p>Server timeout and memory limits are authoritative.</p><p>Hidden tests and adversarial fixtures are never sent to the browser.</p><p>Run is scratchpad-only; Submit is the authoritative verification step.</p></div>
     </div>
     <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
-     <div className="flex items-center justify-between"><span className="text-xs uppercase tracking-widest text-slate-500">Database schema</span><button onClick={()=>setSchema(null)} className="text-xs text-slate-600">refresh</button></div>
-     {schema?<div className="mt-3 space-y-3"><div className="text-sm text-slate-300">{schema.tableName}</div><div className="space-y-1">{schema.columns?.map((c:any)=><div key={c.name} className="flex justify-between text-xs"><span className="text-slate-400">{c.name}</span><span className="text-slate-600">{c.type}</span></div>)}</div><div className="overflow-x-auto"><table className="w-full text-left text-[11px]"><tbody>{schema.sampleData?.slice(0,6).map((row:any,i:number)=><tr key={i}>{Object.values(row).map((v:any,j:number)=><td key={j} className="border-b border-white/5 px-2 py-1 text-slate-500">{String(v??'NULL')}</td>)}</tr>)}</tbody></table></div></div>:<p className="mt-3 text-xs text-slate-600">Loading schema…</p>}
+     <div className="flex items-center justify-between"><span className="text-xs uppercase tracking-widest text-slate-500">Database schema</span><button type="button" onClick={()=>{setSchema(null);void loadSchema()}} className="text-xs text-slate-600 hover:text-slate-300">refresh</button></div>
+     {schema?<div className="mt-3 space-y-3"><div className="text-sm text-slate-300">{schema.tableName}</div><div className="space-y-1">{schema.columns?.map((c:any)=><div key={c.name} className="flex justify-between text-xs"><span className="text-slate-400">{c.name}</span><span className="text-slate-600">{c.type}</span></div>)}</div><div className="overflow-x-auto"><table className="w-full text-left text-[11px]"><tbody>{schema.sampleData?.slice(0,6).map((row:any,i:number)=><tr key={i}>{Object.values(row).map((v:any,j:number)=><td key={j} className="border-b border-white/5 px-2 py-1 text-slate-500">{String(v??'NULL')}</td>)}</tr>)}</tbody></table></div></div>:previewColumns.length?<div className="mt-3 space-y-2"><div className="text-sm text-slate-300">{q.scenarioEntity}</div><div className="space-y-1">{previewColumns.map(name=><div key={name} className="flex justify-between text-xs"><span className="text-slate-400">{name}</span><span className="text-slate-600">loading type…</span></div>)}</div><p className="text-[11px] text-slate-600">Column names and sample rows are ready. Loading exact database types…</p></div>:<p className="mt-3 text-xs text-slate-600">Loading schema…</p>}
     </div>
     {q.fixturePreview&&<details className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4"><summary className="cursor-pointer text-xs uppercase tracking-widest text-slate-500">Sample data</summary><div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr>{q.fixturePreview.columns.map(c=><th key={c} className="border-b border-white/10 px-2 py-2 text-slate-600">{c}</th>)}</tr></thead><tbody>{q.fixturePreview.rows.slice(0,8).map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j} className="border-b border-white/5 px-2 py-1 text-slate-500">{String(v??'NULL')}</td>)}</tr>)}</tbody></table></div></details>}
    </section>
@@ -160,9 +166,13 @@ function Workspace(){
     </div>
    </section>
   </main>
-  <footer className="flex h-12 items-center justify-between border-t border-white/10 bg-[#081018] px-4">
-   <div className="flex items-center gap-4 text-[11px] text-slate-600"><span>{keystrokes} editor changes</span><span>Autosaved locally</span>{events.length>0&&<span className="text-amber-400">{events.length} integrity event(s)</span>}</div>
-   <div className="flex items-center gap-2"><button onClick={()=>void run()} disabled={running||!answer.trim()} className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 disabled:opacity-40">{running?'Running…':'Run  Ctrl+Enter'}</button><button onClick={()=>void runTests()} disabled={testing||!answer.trim()} className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 disabled:opacity-40">{testing?'Testing…':'Run Tests'}</button><button onClick={()=>void submit()} disabled={submitting||!answer.trim()||seconds===0||(!testResult?.publicTestsTotal?false:!publicPassed)} className="btn-primary">{submitting?'Verifying…':'Submit Step →'}</button></div>
+  <footer className="flex h-14 items-center justify-between border-t border-white/10 bg-[#081018] px-4">
+   <div className="flex min-w-0 items-center gap-4 text-[11px] text-slate-600"><span>{keystrokes} editor changes</span><span>Autosaved locally</span>{events.length>0&&<span className="text-amber-400">{events.length} integrity event(s)</span>}</div>
+   <div className="flex items-center gap-2">
+    <button type="button" onClick={()=>void run()} disabled={running||!answer.trim()} title="Execute the current answer without progressing" className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-40">{running?'Running…':<>Run <span className="ml-1 text-slate-600">Ctrl+Enter</span></>}</button>
+    <button type="button" onClick={()=>void runTests()} disabled={testing||!answer.trim()} title="Run all visible/public tests" className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 hover:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-40">{testing?'Testing…':<>Run Tests <span className="ml-1 text-emerald-500/60">Ctrl+Shift+Enter</span></>}</button>
+    <button type="button" onClick={()=>void submit()} disabled={submitting||!answer.trim()||seconds===0||(!testResult?.publicTestsTotal?false:!publicPassed)} title={publicPassed?'Submit for authoritative server verification':'Run Tests and pass all visible tests before submitting'} className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">{submitting?'Verifying…':'Submit Step →'}</button>
+   </div>
   </footer>
  </div>;
 }
