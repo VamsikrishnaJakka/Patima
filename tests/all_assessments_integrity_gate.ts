@@ -60,8 +60,10 @@ async function run(){
       GROUP BY f.domain,f.concept_tag
       ORDER BY f.domain,f.concept_tag
     `);
-    assert.equal(familyCounts.rows.length,EXPECTED_DOMAINS.length*20,'Expected 20 authored inventory families per domain.');
-    for(const row of familyCounts.rows)assert.equal(Number(row.family_count),1,`Duplicate concept/family inventory detected for ${row.domain}/${row.concept_tag}`);
+    assert.equal(familyCounts.rows.length,105,'Expected 20 authored families per each of the five primary domains plus 5 legacy SQL concept groups.');
+    for(const row of familyCounts.rows){
+      assert.equal(Number(row.family_count),1,`Duplicate concept/family inventory detected for ${row.domain}/${row.concept_tag}`);
+    }
     const variants=await client.query(`
       SELECT v.id,f.domain,f.family_code,f.concept_tag,v.experience_level,
              v.variant_code,v.question_type,v.is_active,v.scenario_entity,
@@ -70,7 +72,7 @@ async function run(){
       JOIN question_families f ON f.id=v.family_id
       ORDER BY f.domain,v.experience_level,f.family_code,v.variant_code
     `);
-    assert.equal(variants.rows.length,EXPECTED_DOMAINS.length*EXPECTED_LEVELS.length*20*3,'Expected exactly 3 variants per family/level.');
+    assert.equal(variants.rows.length,EXPECTED_DOMAINS.length*EXPECTED_LEVELS.length*20*3,'Expected exactly 3 variants per family/level across the 6 configured domains.');
     for(const row of variants.rows){
       assert.ok(EXPECTED_DOMAINS.includes(row.domain),`Unexpected variant domain: ${row.domain}`);
       assert.ok(EXPECTED_LEVELS.includes(row.experience_level),`Unexpected variant level: ${row.experience_level}`);
