@@ -151,8 +151,15 @@ function Workspace(){
     <div className="text-xs uppercase tracking-widest text-emerald-300">Problem</div>
     <div className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">{q.promptMarkdown}</div>
     <div className="mt-6 rounded-lg border border-white/10 bg-black/20 p-4">
-     <div className="text-xs uppercase tracking-widest text-slate-500">Constraints & execution</div>
-     <div className="mt-3 space-y-2 text-xs text-slate-500"><p>Server timeout and memory limits are authoritative.</p><p>Hidden tests and adversarial fixtures are never sent to the browser.</p><p>Run is scratchpad-only; Submit is the authoritative verification step.</p></div>
+     <div className="text-xs uppercase tracking-widest text-slate-500">Constraints & execution guidance</div>
+     <div className="mt-3 space-y-2 text-xs text-slate-400">
+      {q.expectedTimeComplexity&&<p><span className="text-slate-600">Expected time:</span> {q.expectedTimeComplexity}</p>}
+      {q.expectedSpaceComplexity&&<p><span className="text-slate-600">Expected space:</span> {q.expectedSpaceComplexity}</p>}
+      <p><span className="text-slate-600">Task type:</span> {q.questionType||'SQL coding'}</p>
+      <p><span className="text-slate-600">Execution:</span> server timeout and memory limits are authoritative.</p>
+      <p><span className="text-slate-600">Testing:</span> use <b>Run</b> for the current example, then <b>Run Tests</b> for all visible cases.</p>
+      <p><span className="text-slate-600">Submission:</span> Submit Step runs authoritative verification, including hidden tests, and advances only after verification passes.</p>
+     </div>
     </div>
     <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
      <div className="flex items-center justify-between"><span className="text-xs uppercase tracking-widest text-slate-500">Database schema</span><button type="button" onClick={()=>{setSchema(null);void loadSchema()}} className="text-xs text-slate-600 hover:text-slate-300">refresh</button></div>
