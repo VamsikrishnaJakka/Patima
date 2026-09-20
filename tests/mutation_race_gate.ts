@@ -34,7 +34,10 @@ async function run(){
     const consent=readFileSync(repoRoot+'/app/api/candidate/contact/respond/route.ts','utf8');
     assert.match(consent,/FOR UPDATE/);
     assert.match(consent,/PENDING_CANDIDATE_APPROVAL/);
-    console.log('PASS: consent mutation is serialized and cannot transition an already-resolved request.');
+    assert.match(consent,/expires_at/);
+    assert.match(consent,/status='EXPIRED'/);
+    assert.match(consent,/This contact request has expired/);
+    console.log('PASS: consent mutation is serialized and cannot accept an expired request.');
 
     console.log('[GATE 6] Assessment submission transitions lock the authoritative session...');
     const submit=readFileSync(repoRoot+'/app/api/assessments/submit-step/route.ts','utf8');
@@ -58,7 +61,7 @@ async function run(){
     console.log('PASS: concurrent duplicate signup attempts resolve through a database uniqueness constraint.');
 
     console.log('');
-    console.log('ALL 8 MUTATION / RACE HARDENING GATES PASSED.');
+    console.log('ALL 9 MUTATION / RACE HARDENING GATES PASSED.');
   }finally{
     client.release();
     await directPool.end();
