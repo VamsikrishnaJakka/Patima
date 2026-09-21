@@ -24,7 +24,7 @@ SET
   END,
   response_mode=CASE
     WHEN regexp_replace(f.family_code,'^.*_F','')::int IN (3,4,5,8,14,17) THEN 'CODE'
-    WHEN regexp_replace(f.family_code,'^.*_F','')::int IN (1,2,6,7,9,10,13,16,19) THEN 'MCQ'
+    WHEN regexp_replace(f.family_code,'^.*_F','')::int IN (1,2,6,7,9,10,13,16,19,20) THEN 'MCQ'
     ELSE 'TEXT'
   END,
   question_type=CASE
