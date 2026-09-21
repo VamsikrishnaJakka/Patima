@@ -222,27 +222,27 @@ async function run(){
     console.log('PASS: reservation identity is enforced per session/question.');
 
     console.log('[GATE 7] Forged client correctness cannot override server verification...');
-    let forgedBlocked=false;
-    try{
-      await allocateNextQuestion(client,{
-        sessionId:sessionB,
-        userId:userB,
-        submittedCode:'SELECT 1',
-        isCorrect:true,
-        durationSeconds:20,
-        expectedVariantId:variantB.id,
-        verificationReport:{...report,verdict:'WRONG_ANSWER',executionDigest:'forged'},
-      });
-    }catch(error:any){
-      forgedBlocked=error?.message==='VERIFICATION_FAILED_NO_ADVANCE';
-    }
-    assert.equal(forgedBlocked,true,'Client-supplied correctness bypassed verification.');
+    const forgedNext=await allocateNextQuestion(client,{
+      sessionId:sessionB,
+      userId:userB,
+      submittedCode:'SELECT 1',
+      isCorrect:true,
+      durationSeconds:20,
+      expectedVariantId:variantB.id,
+      verificationReport:{...report,verdict:'WRONG_ANSWER',allPassed:false,isCorrect:false,executionDigest:report.executionDigest+'-forged'}
+    });
+    assert.ok(forgedNext,'Failed submission should advance under the non-blocking CAT policy.');
     const forgedState=await client.query(`
       SELECT current_step,status FROM assessment_sessions WHERE id=$1
     `,[sessionB]);
-    assert.equal(Number(forgedState.rows[0].current_step),1);
+    assert.equal(Number(forgedState.rows[0].current_step),2);
     assert.equal(forgedState.rows[0].status,'IN_PROGRESS');
-    console.log('PASS: forged correctness/verdict cannot advance the state machine.');
+    const forgedLog=await client.query(`
+      SELECT is_correct,verification_status FROM assessment_adaptive_logs WHERE session_id=$1 AND step_index=1
+    `,[sessionB]);
+    assert.equal(forgedLog.rows[0].is_correct,false,'Client-supplied true correctness bypassed server verification.');
+    assert.equal(forgedLog.rows[0].verification_status,'FAILED');
+    console.log('PASS: server verification controls correctness while failed submissions still advance.');
 
     console.log('');
     console.log('ALL 7 END-TO-END ASSESSMENT LIFECYCLE GATES PASSED.');
