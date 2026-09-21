@@ -18,7 +18,7 @@ console.log('PASS');
 
 console.log('[GATE 2] Public inspection cannot bypass candidate visibility...');
 assert.match(migration,/trg_sync_public_evidence_shares_visibility/);
-assert.match(migration,/NEW\.visibility = 'PUBLIC'/);
+assert.match(migration,/NEW\.visibility <> 'PUBLIC'/);
 assert.match(migration,/SET revoked_at = clock_timestamp\(\)/);
 assert.match(publicApi,/revoked_at IS NULL/);
 assert.match(publicApi,/app\.public_share_token/);
