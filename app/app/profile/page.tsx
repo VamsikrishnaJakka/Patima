@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {AppShell} from '@/components/AppShell';
+import {TechnicalRecordSummary,TechnicalRecordMetrics} from '@/components/TechnicalRecordSummary';
 
 type Session={name:string;email:string;handle:string;role:string};
 type Evidence={capability:string;state:string;verification:string;observedAt:string|null;evidenceCount:number};
