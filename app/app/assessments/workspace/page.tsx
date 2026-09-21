@@ -195,7 +195,7 @@ function Workspace(){
      </div>
 
      <div className="mt-4">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Schema</div>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Database schema</div>
       <div className="overflow-hidden rounded-lg border border-white/10">
        <table className="w-full text-left text-xs">
         <thead><tr className="bg-white/[0.03]"><th className="px-3 py-2 font-medium text-slate-500">Column</th><th className="px-3 py-2 text-right font-medium text-slate-500">Type</th></tr></thead>
@@ -237,6 +237,7 @@ function Workspace(){
       {error&&<div className="mb-4 rounded-md border border-rose-500/30 bg-rose-500/5 p-3 text-rose-300"><div className="font-semibold">Action failed</div><div className="mt-1 whitespace-pre-wrap">{error}</div></div>}
       {consoleTab==='output'&&<div>
        {!runResult&&!error&&<div className="text-slate-600">Run your SQL to execute it against the assessment fixture.</div>}
+       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Expected result</div>
        {runResult&&<div>
         <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-2"><div className="flex items-center gap-3"><span className={runResult.cases?.[0]?.status==='AC'?'rounded border border-emerald-800 bg-emerald-950 px-2 py-0.5 text-[11px] font-bold text-emerald-300':'rounded border border-rose-800 bg-rose-950 px-2 py-0.5 text-[11px] font-bold text-rose-300'}>{runResult.cases?.[0]?.status==='AC'?'Query Executed':runResult.verdict}</span><span className="text-slate-500">{runResult.executionTimeMs}ms</span></div>{runResult.cases?.[0]?.actualOutputPreview&&<span className="text-[11px] text-slate-500">{runResult.cases[0].actualOutputPreview.rows.length} rows returned</span>}</div>
         {runResult.cases?.[0]?.actualOutputPreview&&(()=>{const preview=runResult.cases?.[0]?.actualOutputPreview; if(!preview)return null; return <div className="max-h-72 overflow-auto rounded-lg border border-white/10"><table className="w-full text-left text-[11px]"><thead className="sticky top-0 bg-[#081018]"><tr>{preview.columns.map((x:string)=><th key={x} className="border-b border-white/10 px-3 py-2 font-mono font-medium text-slate-400">{x}</th>)}</tr></thead><tbody>{preview.rows.map((row:any,i:number)=><tr key={i} className="hover:bg-white/[0.02]">{preview.columns.map((x:string)=><td key={x} className="border-b border-white/5 px-3 py-1.5 font-mono text-slate-300">{String(row[x]??'NULL')}</td>)}</tr>)}</tbody></table></div>;})()}
