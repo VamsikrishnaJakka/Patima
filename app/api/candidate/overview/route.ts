@@ -18,7 +18,7 @@ export async function GET(){
           GROUP BY cn.slug,cn.name,ucs.state,ucs.evidence_count,ucs.last_observed_at,ucs.last_demonstrated_at
           ORDER BY cn.name
         `,[s.userId]);
-        const completed=await client.query(`SELECT COUNT(*)::int AS completed FROM evidence_records WHERE user_id=$1`,[s.userId]);
+        const completed=await client.query(`SELECT COUNT(*)::int AS completed FROM assessment_sessions WHERE user_id=$1 AND status='VERIFIED'`,[s.userId]);
         const active=await client.query(`
           SELECT id,domain,experience_level,current_step,selected_question_count,expires_at,target_role
           FROM assessment_sessions
