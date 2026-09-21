@@ -1,13 +1,11 @@
 import {NextResponse}from'next/server';
-import {getAssessment}from'@/lib/assessment-catalog';
+import {getAssessment,getAssessmentDisplayTitle}from'@/lib/assessment-catalog';
 import {allocateNextQuestion}from'@/lib/assessment/allocator';
 import {requireCandidate,withAuthenticatedClient}from'@/lib/server-auth';
 
 const levels=['BEGINNER','INTERMEDIATE','ADVANCED'] as const;
 type ExperienceLevel=typeof levels[number];
 
-const roleForDomain=(domain:string)=>domain==='sql-window-functions'?'Data Engineer':domain==='python-concurrency'||domain==='java.concurrency_memory'?'Backend Engineer':'Platform / DevOps Engineer';
-const seniorityForLevel=(level:ExperienceLevel)=>level==='BEGINNER'?'JUNIOR':level==='INTERMEDIATE'?'MID':'SENIOR';
 const questionChoices=[5,10,15,20];
 const durationFor=(level:ExperienceLevel,count:number)=>Math.ceil((count*(level==='BEGINNER'?90:level==='INTERMEDIATE'?100:120))/60);
 
@@ -22,6 +20,8 @@ export async function POST(request:Request){
   domain=typeof body.domain==='string'?body.domain:'';
   const experienceLevel=String(body.experienceLevel||'').toUpperCase() as ExperienceLevel;
   const questionCount=Number(body.questionCount)||0;
+  const targetRole=typeof body.targetRole==='string'&&body.targetRole.trim()?body.targetRole.trim():null;
+  const seniority=typeof body.seniority==='string'&&['JUNIOR','MID','SENIOR'].includes(body.seniority.toUpperCase())?body.seniority.toUpperCase():null;
   if(!levels.includes(experienceLevel))return NextResponse.json({error:'Invalid experience level'},{status:400});
   if(!questionChoices.includes(questionCount))return NextResponse.json({error:'Choose 5, 10, 15, or 20 questions'},{status:400});
   const assessment=getAssessment(domain);
@@ -42,16 +42,16 @@ export async function POST(request:Request){
 
    const inserted=await client.query(
     `INSERT INTO assessment_sessions
-      (user_id,target_role,seniority,domain_slug,capability_node_id,domain,experience_level,current_step,status,started_at,expires_at,last_activity_at,selected_question_count,selected_duration_minutes)
-     VALUES($1,$2,$3,$4,$5,$6,$7,1,'IN_PROGRESS',clock_timestamp(),clock_timestamp()+($9 * interval '1 minute'),clock_timestamp(),$8,$9)
+      (user_id,target_role,seniority,domain_slug,capability_node_id,domain,experience_level,current_step,status,started_at,expires_at,last_activity_at,selected_question_count,selected_duration_minutes,target_role_source,seniority_source)
+     VALUES($1,$2,$3,$4,$5,$6,$7,1,'IN_PROGRESS',clock_timestamp(),clock_timestamp()+($9 * interval '1 minute'),clock_timestamp(),$8,$9,$10,$11)
      RETURNING id`,
-    [session.userId,roleForDomain(domain),seniorityForLevel(experienceLevel),assessment.slug,node.rows[0].id,domain,experienceLevel,questionCount,durationFor(experienceLevel,questionCount)]
+    [session.userId,targetRole,seniority,assessment.slug,node.rows[0].id,domain,experienceLevel,questionCount,durationFor(experienceLevel,questionCount),targetRole?'USER_PROVIDED':'SYSTEM_INFERRED',seniority?'USER_PROVIDED':'SYSTEM_INFERRED]
    );
    const question=await allocateNextQuestion(client,{sessionId:inserted.rows[0].id,userId:session.userId});
    if(!question)throw new Error('QUESTION_ALLOCATION_FAILED');
    return {
     sessionId:inserted.rows[0].id,
-    assessment:{slug:assessment.slug,title:assessment.title,capabilityName:assessment.capabilityName},
+    assessment:{slug:assessment.slug,title:getAssessmentDisplayTitle(domain,experienceLevel),capabilityName:assessment.capabilityName},
     config:{...config.rows[0],total_questions:questionCount,duration_minutes:durationFor(experienceLevel,questionCount)},
     question
    };
