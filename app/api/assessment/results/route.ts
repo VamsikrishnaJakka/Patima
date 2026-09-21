@@ -1,3 +1,4 @@
+import {getAssessmentDisplayTitle}from '@/lib/assessment-catalog';
 import {NextResponse} from 'next/server';
 import {requireCandidate,withAuthenticatedClient} from '@/lib/server-auth';
 
