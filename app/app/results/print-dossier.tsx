@@ -28,9 +28,10 @@ export function PrintDossier({data,onClose}:{data:AssessmentDossierResponse;onCl
     <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-slate-600">
      <div>Candidate: <b>{data.candidate.name||data.candidate.handle}</b></div>
      <div>Handle: <b>@{data.candidate.handle}</b></div>
-     <div>Target: <b>{data.session.targetRole}</b></div>
      <div>Level: <b>{data.session.experienceLevel}</b></div>
      <div>Domain: <b>{data.session.domainTitle}</b></div>
+     {data.session.targetRole&&<div>Target role: <b>{data.session.targetRole}</b></div>}
+     {data.session.seniority&&<div>Seniority: <b>{data.session.seniority}</b></div>}
      <div>Submitted: <b>{data.session.submittedAt?new Date(data.session.submittedAt).toLocaleString():'—'}</b></div>
     </div>
    </header>
