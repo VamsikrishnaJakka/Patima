@@ -1,5 +1,6 @@
 // lib/assessment/allocator.ts
 import { PoolClient } from 'pg';
+import crypto from 'node:crypto';
 
 export interface NextQuestionRequest {
   sessionId: string;
@@ -182,11 +183,92 @@ export async function allocateNextQuestion(
     // Advance current_step
     const nextStep = session.current_step + 1;
     if (nextStep > session.total_questions) {
+      // Assessment completion and evidence are different concepts:
+      // the session records the assessment event; this block derives one
+      // inspectable evidence record from the persisted, server-verified logs.
+      const completedLogs = await client.query(`
+        SELECT l.step_index,l.variant_id,l.candidate_response,l.is_correct,
+               l.verification_status,l.public_tests_passed,l.public_tests_total,
+               l.hidden_tests_passed,l.hidden_tests_total,l.execution_time_ms,
+               l.verification_output,l.execution_digest,v.prompt_markdown,
+               v.reference_solution,f.concept_tag
+        FROM assessment_adaptive_logs l
+        JOIN question_variants v ON v.id=l.variant_id
+        JOIN question_families f ON f.id=l.family_id
+        WHERE l.session_id=$1
+        ORDER BY l.step_index
+      `, [session.id]);
+
+      const logs = completedLogs.rows;
+      const answered = logs.filter((x:any)=>x.candidate_response !== null && x.candidate_response !== '[SKIPPED]');
+      const scored = answered.filter((x:any)=>x.is_correct !== null);
+      const correct = scored.filter((x:any)=>x.is_correct === true).length;
+      const scoreRatio = scored.length ? correct / scored.length : 0;
+      // A completed assessment always creates evidence. Capability state is
+      // separate: only a sufficiently demonstrated assessment can promote it.
+      const outcome = scoreRatio >= 0.70 ? 'DEMONSTRATED' : 'DEVELOPING';
+      const artifactCode = answered.map((x:any)=>`Question ${x.step_index}\\n${String(x.candidate_response||'')}`).join('\\n\\n');
+      const artifactSha256 = crypto.createHash('sha256').update(artifactCode || `assessment:${session.id}`).digest('hex');
+      const executionDigests = logs.map((x:any)=>x.execution_digest).filter((x:any)=>typeof x==='string'&&x.length);
+      const executionTraceDigest = executionDigests.length
+        ? crypto.createHash('sha256').update(executionDigests.join('|')).digest('hex')
+        : null;
+      const testTrace = logs.map((x:any)=>({
+        stepIndex:Number(x.step_index),
+        concept:x.concept_tag,
+        status:x.candidate_response==='[SKIPPED]'?'SKIPPED':x.is_correct===true?'PASSED':x.is_correct===false?'FAILED':'RECORDED',
+        publicTestsPassed:Number(x.public_tests_passed||0),
+        publicTestsTotal:Number(x.public_tests_total||0),
+        hiddenTestsPassed:Number(x.hidden_tests_passed||0),
+        hiddenTestsTotal:Number(x.hidden_tests_total||0),
+        executionTimeMs:x.execution_time_ms==null?null:Number(x.execution_time_ms),
+        executionDigest:x.execution_digest||null,
+        verification:x.verification_output||{}
+      }));
+      const verificationTier = logs.some((x:any)=>x.execution_digest) ? 'SANDBOX_REPRODUCED' : 'PLATFORM_ATTESTED';
+
       await client.query(`
         UPDATE assessment_sessions
-        SET status = 'VERIFIED', submitted_at = clock_timestamp(), final_theta = $1, updated_at = clock_timestamp()
-        WHERE id = $2;
-      `, [targetTheta, session.id]);
+        SET status='VERIFIED', outcome=$1, submitted_at=clock_timestamp(),
+            final_theta=$2, updated_at=clock_timestamp()
+        WHERE id=$3
+      `, [outcome,targetTheta,session.id]);
+
+      await client.query(`
+        INSERT INTO evidence_records(
+          assessment_session_id,user_id,capability_node_id,verification_tier,
+          summary,context,artifact_code,test_trace,execution_trace_digest,artifact_sha256
+        )
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)
+      `, [
+        session.id,session.user_id,session.capability_node_id,verificationTier,
+        `Assessment completed: ${correct}/${scored.length} scored responses correct; ${logs.length} questions evaluated. Capability state: ${outcome}.`,
+        `Assessment level: ${session.experience_level}. Evidence is derived from the server-persisted assessment logs and authoritative verification results; no target role or employment seniority was inferred.`,
+        artifactCode || '[NO_NON_SKIPPED_RESPONSE]',
+        JSON.stringify(testTrace),
+        executionTraceDigest,
+        artifactSha256
+      ]);
+
+      await client.query(`
+        INSERT INTO user_capability_states(
+          user_id,capability_node_id,state,last_demonstrated_at,last_observed_at,evidence_count
+        )
+        VALUES($1,$2,$3,CASE WHEN $3='DEMONSTRATED' THEN clock_timestamp() ELSE NULL END,clock_timestamp(),1)
+        ON CONFLICT(user_id,capability_node_id) DO UPDATE SET
+          state=CASE
+            WHEN $3='DEMONSTRATED' THEN 'DEMONSTRATED'
+            WHEN user_capability_states.state='DEMONSTRATED' THEN user_capability_states.state
+            ELSE 'DEVELOPING'
+          END,
+          last_demonstrated_at=CASE
+            WHEN $3='DEMONSTRATED' THEN clock_timestamp()
+            ELSE user_capability_states.last_demonstrated_at
+          END,
+          last_observed_at=clock_timestamp(),
+          evidence_count=user_capability_states.evidence_count+1
+      `, [session.user_id,session.capability_node_id,outcome]);
+
       return null;
     }
 
