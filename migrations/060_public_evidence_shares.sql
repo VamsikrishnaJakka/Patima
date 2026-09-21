@@ -74,11 +74,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF NEW.visibility = 'PUBLIC' THEN
-    UPDATE public_evidence_shares
-       SET revoked_at = NULL
-     WHERE candidate_user_id = NEW.user_id;
-  ELSE
+  IF NEW.visibility <> 'PUBLIC' THEN
     UPDATE public_evidence_shares
        SET revoked_at = clock_timestamp()
      WHERE candidate_user_id = NEW.user_id
