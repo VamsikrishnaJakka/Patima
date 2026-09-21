@@ -45,7 +45,7 @@ export async function POST(request:Request){
       (user_id,target_role,seniority,domain_slug,capability_node_id,domain,experience_level,current_step,status,started_at,expires_at,last_activity_at,selected_question_count,selected_duration_minutes,target_role_source,seniority_source)
      VALUES($1,$2,$3,$4,$5,$6,$7,1,'IN_PROGRESS',clock_timestamp(),clock_timestamp()+($9 * interval '1 minute'),clock_timestamp(),$8,$9,$10,$11)
      RETURNING id`,
-    [session.userId,targetRole,seniority,assessment.slug,node.rows[0].id,domain,experienceLevel,questionCount,durationFor(experienceLevel,questionCount),targetRole?'USER_PROVIDED':'SYSTEM_INFERRED',seniority?'USER_PROVIDED':'SYSTEM_INFERRED]
+    [session.userId,targetRole,seniority,assessment.slug,node.rows[0].id,domain,experienceLevel,questionCount,durationFor(experienceLevel,questionCount),targetRole?'USER_PROVIDED':'SYSTEM_INFERRED',seniority?'USER_PROVIDED':'SYSTEM_INFERRED']
    );
    const question=await allocateNextQuestion(client,{sessionId:inserted.rows[0].id,userId:session.userId});
    if(!question)throw new Error('QUESTION_ALLOCATION_FAILED');
