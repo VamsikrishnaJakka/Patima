@@ -34,3 +34,12 @@ const docker:AssessmentDefinition={slug:'docker.container_internals',title:'Dock
 
 export const ASSESSMENT_CATALOG:AssessmentDefinition[]=[sql,python,java,linux,docker];
 export const getAssessment=(slug:string)=>ASSESSMENT_CATALOG.find(a=>a.slug===slug)||null;
+
+export const getAssessmentDisplayTitle=(domain:string,experienceLevel?:string|null)=>{
+ if(domain==='sql-window-functions') return String(experienceLevel||'').toUpperCase()==='BEGINNER'?'SQL Foundations':'SQL & Window Functions';
+ if(domain==='python-concurrency') return String(experienceLevel||'').toUpperCase()==='BEGINNER'?'Python Foundations':'Python Concurrency';
+ if(domain==='java.concurrency_memory') return String(experienceLevel||'').toUpperCase()==='BEGINNER'?'Java Foundations':'Java Concurrency & Memory Model';
+ if(domain==='linux.process_signals') return String(experienceLevel||'').toUpperCase()==='BEGINNER'?'Linux Foundations':'Linux Systems & Signals';
+ if(domain==='docker.container_internals') return String(experienceLevel||'').toUpperCase()==='BEGINNER'?'Docker Foundations':'Docker & Container Mechanics';
+ return getAssessment(domain)?.title||domain;
+};
