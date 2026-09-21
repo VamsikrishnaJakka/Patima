@@ -4,6 +4,7 @@ import {useEffect,useState} from 'react';
 import {Activity,ArrowRight,FileCheck2,ShieldCheck} from 'lucide-react';
 import {AppShell} from '@/components/AppShell';
 import {StatusPill} from '@/components/StatusPill';
+import {TechnicalRecordSummary,TechnicalRecordMetrics} from '@/components/TechnicalRecordSummary';
 
 type Evidence={id:string;capability:string;state:string;verification:string;observedAt:string|null;freshness:string;evidenceCount:number};
 type ActiveAssessment={id:string;domain:string;experienceLevel:string;currentStep:number;questionCount:number;expiresAt:string;targetRole:string};
