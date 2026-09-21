@@ -67,6 +67,6 @@ CREATE POLICY p_hackathon_contributions_access ON hackathon_contributions FOR SE
 DROP POLICY IF EXISTS p_hackathon_contributions_insert ON hackathon_contributions;
 CREATE POLICY p_hackathon_contributions_insert ON hackathon_contributions FOR INSERT TO PUBLIC WITH CHECK (
   user_id=NULLIF(current_setting('app.current_user_id',true),'')::uuid
-  AND EXISTS (SELECT 1 FROM hackathon_participants p WHERE p.arena_id=hackathon_contributions.arena_id AND p.user_id=p.user_id)
+  AND EXISTS (SELECT 1 FROM hackathon_participants p WHERE p.arena_id=hackathon_contributions.arena_id AND p.user_id=NULLIF(current_setting('app.current_user_id',true),'')::uuid)
 );
 GRANT SELECT,INSERT,UPDATE ON hackathon_arenas,hackathon_participants,hackathon_contributions TO CURRENT_USER;
