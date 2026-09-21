@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import crypto from 'node:crypto';
 import {requireCandidate,withAuthenticatedClient} from '@/lib/server-auth';
 
 export async function POST(request:Request,{params}:{params:{id:string}}){
@@ -20,7 +21,9 @@ export async function POST(request:Request,{params}:{params:{id:string}}){
     if(!allAgreed)throw new Error('ALL_PARTICIPANTS_MUST_AGREE');
     const start=body?.scheduledStart||row.scheduled_start;
     if(!start)throw new Error('SCHEDULED_START_REQUIRED');
-    await client.query('UPDATE hackathon_arenas SET scheduled_start=$1,status=\'SCHEDULED\' WHERE id=$2',[start,params.id]);
+    const platformSeed=crypto.createHash('sha256').update(params.id+'|'+row.experience_level+'|'+String(start)).digest('hex');
+    const platformArena={version:1,generatedBy:'PATIMA',seed:platformSeed,execution:{cpuLimitMs:2000,memoryLimitMb:128,network:false,deterministic:true},problem:{fixtures:'platform-authored',publicTests:'platform-authored',hiddenTests:'platform-authored',candidateSuggestions:'advisory-only'},rules:{simultaneousStart:true,noParticipantMayChangeFixtures:true,serverArbitration:true}};
+    await client.query('UPDATE hackathon_arenas SET scheduled_start=$1,status=\'SCHEDULED\',arena_spec=$2::jsonb WHERE id=$3',[start,JSON.stringify({...row.arena_spec,platformArena}),params.id]);
    }else if(action==='CANCEL'){
     await client.query('UPDATE hackathon_arenas SET status=\'CANCELLED\' WHERE id=$1',[params.id]);
    }else if(action==='ACCEPT'&&allAgreed){
