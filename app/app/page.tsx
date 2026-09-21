@@ -11,7 +11,7 @@ type ActiveAssessment={id:string;domain:string;experienceLevel:string;currentSte
 type Overview={metrics:TechnicalRecordMetrics;evidence:Evidence[];activeAssessment:ActiveAssessment|null};
 
 export default function Dashboard(){
-  const[overview,setOverview]=useState<Overview>({metrics:{assessmentsCompleted:0,evidenceRecords:0,demonstratedCount:0,developingCount:0},stats:{demonstrated:0,developing:0,completed:0},evidence:[],activeAssessment:null});
+  const[overview,setOverview]=useState<Overview>({metrics:{assessmentsCompleted:0,evidenceRecords:0,demonstratedCount:0,developingCount:0},evidence:[],activeAssessment:null});
   const[loading,setLoading]=useState(true);
   useEffect(()=>{let alive=true;(async()=>{try{const res=await fetch('/api/candidate/overview',{cache:'no-store'});if(!res.ok)return;const data=await res.json();if(alive)setOverview({metrics:data?.metrics||{assessmentsCompleted:0,evidenceRecords:0,demonstratedCount:0,developingCount:0},evidence:Array.isArray(data?.evidence)?data.evidence:[],activeAssessment:data?.activeAssessment||null});}finally{if(alive)setLoading(false);}})();return()=>{alive=false}},[]);
   return <AppShell><div className="mb-8"><p className="eyebrow">YOUR PATIMA WORKSPACE</p><h1 className="mt-2 text-3xl font-semibold">Your capability workspace</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Assessment activity and evidence are scoped to your authenticated PATIMA account.</p></div>
