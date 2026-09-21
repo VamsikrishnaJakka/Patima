@@ -179,7 +179,13 @@ function Workspace(){
       <div className="flex justify-between gap-4"><span className="text-slate-500">Expected space complexity</span><span className="font-mono text-slate-200">{q.expectedSpaceComplexity||'Not specified'}</span></div>
       <div className="flex justify-between gap-4"><span className="text-slate-500">Question type</span><span className="text-slate-200">{q.questionType||'SQL coding'}</span></div>
      </div>
-     <div className="mt-4 rounded-lg bg-white/[0.03] px-3 py-3 text-xs leading-5 text-slate-400">
+     {q.questionType==='CODING' && q.conceptRubric && typeof q.conceptRubric==='object' && Object.keys(q.conceptRubric as Record<string,unknown>).length>0 && <div className="mt-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Requirements checklist</div>
+      <div className="mt-3 space-y-2 text-xs leading-5 text-slate-300">
+       {Object.entries(q.conceptRubric as Record<string,string>).map(([key,value])=><div key={key}><span className="text-slate-500">{key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase())}:</span> <span className="text-slate-300">{String(value)}</span></div>)}
+      </div>
+    </div>}
+    <div className="mt-4 rounded-lg bg-white/[0.03] px-3 py-3 text-xs leading-5 text-slate-400">
       {q.questionType==='CODING'
        ? <><span className="font-medium text-slate-300">How to solve:</span> write the SQL answer using the table and columns below. Use <b className="text-slate-200">Run</b> to inspect your query, <b className="text-slate-200">Run Tests</b> to check the public cases, then <b className="text-slate-200">Submit Step</b>.</>
        : q.responseMode==='MCQ'
