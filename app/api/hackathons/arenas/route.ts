@@ -16,13 +16,23 @@ export async function GET(request:Request){
    const capabilities=await client.query(`SELECT cn.slug,ucs.state,(SELECT final_theta FROM assessment_sessions WHERE user_id=$1 AND domain=cn.slug AND status='VERIFIED' ORDER BY submitted_at DESC LIMIT 1) AS verified_theta FROM capability_nodes cn LEFT JOIN user_capability_states ucs ON ucs.capability_node_id=cn.id AND ucs.user_id=$1`,[s.userId]);
    const candidateThetas=new Map<string,number|null>();
    for(const row of capabilities.rows)candidateThetas.set(row.slug,row.verified_theta==null?null:Number(row.verified_theta));
-   let q=`SELECT a.id,a.title,a.domain,a.experience_level,a.scheduled_start,a.duration_minutes,a.arena_type,a.max_participants,a.creator_stack,a.status,a.created_at,u.name AS creator_name,u.handle AS creator_handle,COUNT(p.user_id)::int AS current_participants FROM hackathon_arenas a JOIN user_accounts u ON u.id=a.created_by LEFT JOIN hackathon_participants p ON p.arena_id=a.id WHERE a.is_public=TRUE AND a.status IN ('PROPOSED','AGREED','SCHEDULED') AND (a.scheduled_start IS NULL OR a.scheduled_start>=clock_timestamp()-INTERVAL '15 minutes')`;
+   let q=`
+    SELECT a.id,a.title,a.domain,a.experience_level,a.scheduled_start,a.duration_minutes,
+           a.arena_type,a.max_participants,a.creator_stack,a.status,a.created_at,
+           u.name AS creator_name,u.handle AS creator_handle,
+           COUNT(p.user_id)::int AS current_participants
+    FROM hackathon_arenas a
+    JOIN user_accounts u ON u.id=a.created_by
+    LEFT JOIN hackathon_participants p ON p.arena_id=a.id
+    WHERE a.is_public=TRUE
+      AND a.status IN ('PROPOSED','AGREED','SCHEDULED')
+      AND (a.scheduled_start IS NULL OR a.scheduled_start>=clock_timestamp()-INTERVAL '15 minutes')
+   `;
    const params:any[]=[];
-   const add=(value:string)=>{params.push(value);return '$'+params.length};
-   if(domain&&domain!=='ALL')q=q.slice(0,-1)+` AND a.domain=${add(domain)};`;
-   if(level&&level!=='ALL')q=q.slice(0,-1)+` AND a.experience_level=${add(level)};`;
-   if(arenaType&&arenaType!=='ALL')q=q.slice(0,-1)+` AND a.arena_type=${add(arenaType)};`;
-   q=q.slice(0,-1)+` GROUP BY a.id,u.name,u.handle ORDER BY a.scheduled_start NULLS LAST,a.created_at DESC LIMIT 50;`;
+   if(domain&&domain!=='ALL'){params.push(domain);q+=` AND a.domain=$${params.length}`;}
+   if(level&&level!=='ALL'){params.push(level);q+=` AND a.experience_level=$${params.length}`;}
+   if(arenaType&&arenaType!=='ALL'){params.push(arenaType);q+=` AND a.arena_type=$${params.length}`;}
+   q+=` GROUP BY a.id,u.name,u.handle ORDER BY a.scheduled_start NULLS LAST,a.created_at DESC LIMIT 50`;
    const result=await client.query(q,params);
    const arenas=result.rows.filter((row:any)=>!openOnly||row.current_participants<row.max_participants).map((row:any)=>{
     const candidateTheta=candidateThetas.get(row.domain)??null;
