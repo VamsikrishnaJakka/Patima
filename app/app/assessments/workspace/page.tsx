@@ -182,7 +182,7 @@ function Workspace(){
      {q.questionType==='CODING' && q.conceptRubric && typeof q.conceptRubric==='object' && Object.keys(q.conceptRubric as Record<string,unknown>).length>0 && <div className="mt-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Requirements checklist</div>
       <div className="mt-3 space-y-2 text-xs leading-5 text-slate-300">
-       {Object.entries(q.conceptRubric as Record<string,string>).map(([key,value])=><div key={key}><span className="text-slate-500">{key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase())}:</span> <span className="text-slate-300">{String(value)}</span></div>)}
+       {Object.entries(q.conceptRubric as Record<string,unknown>).map(([key,value])=><div key={key}><span className="text-slate-500">{key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase())}:</span> <span className="text-slate-300">{typeof value === 'string' ? value : JSON.stringify(value)}</span></div>)}
       </div>
     </div>}
     <div className="mt-4 rounded-lg bg-white/[0.03] px-3 py-3 text-xs leading-5 text-slate-400">
