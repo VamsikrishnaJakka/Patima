@@ -229,7 +229,7 @@ async function run(){
       isCorrect:true,
       durationSeconds:20,
       expectedVariantId:variantB.id,
-      verificationReport:{...report,verdict:'WRONG_ANSWER',allPassed:false,isCorrect:false,executionDigest:report.executionDigest+'-forged'}
+      verificationReport:{...report,verdict:'WRONG_ANSWER',isCorrect:false,executionDigest:report.executionDigest+'-forged'}
     });
     assert.ok(forgedNext,'Failed submission should advance under the non-blocking CAT policy.');
     const forgedState=await client.query(`
