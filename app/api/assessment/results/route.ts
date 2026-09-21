@@ -9,7 +9,7 @@ export async function GET(request:Request){
   const sessionId=new URL(request.url).searchParams.get('sessionId');
   const rows=await withAuthenticatedClient(async(s,client)=>client.query(`
     SELECT
-      a.id session_id, a.domain_slug, a.target_role, a.seniority, a.status, a.outcome, a.submitted_at,
+      a.id session_id, a.domain_slug, a.experience_level, a.target_role, a.seniority, a.target_role_source, a.seniority_source, a.status, a.outcome, a.submitted_at,
       cn.name capability, er.id evidence_id, er.verification_tier, er.summary, er.context,
       COALESCE((
         SELECT jsonb_agg(
@@ -48,7 +48,13 @@ export async function GET(request:Request){
       AND ($2::uuid IS NULL OR a.id=$2::uuid)
     ORDER BY a.submitted_at DESC
   `,[s.userId,sessionId||null]));
-  return NextResponse.json({results:rows.rows},{headers:{'Cache-Control':'no-store'}});
+  const results=rows.rows.map((row:any)=>({
+   ...row,
+   domain_title:getAssessmentDisplayTitle(row.domain_slug,row.experience_level),
+   target_role:row.target_role_source==='USER_PROVIDED'?row.target_role:null,
+   seniority:row.seniority_source==='USER_PROVIDED'?row.seniority:null
+  }));
+  return NextResponse.json({results},{headers:{'Cache-Control':'no-store'}});
  }catch(error){
   const status=error instanceof Error&&error.message==='UNAUTHORIZED'?401:500;
   return NextResponse.json({error:status===401?'Unauthorized':'Unable to load assessment results'},{status});
