@@ -168,7 +168,7 @@ async function run(){
     const failedNext=await allocateNextQuestion(client,{
       sessionId:failedSession,userId,submittedCode:'SELECT 1;',isCorrect:true,
       expectedVariantId:failedQuestion!.variantId,
-      verificationReport:{...accepted,verdict:'WRONG_ANSWER',allPassed:false,isCorrect:false,executionDigest:accepted.executionDigest+'-failed'}
+      verificationReport:{...accepted,verdict:'WRONG_ANSWER',isCorrect:false,executionDigest:accepted.executionDigest+'-failed'}
     });
     assert.ok(failedNext);
     const failedState=await client.query(`SELECT current_step,status FROM assessment_sessions WHERE id=$1`,[failedSession]);
