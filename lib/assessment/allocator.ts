@@ -38,7 +38,7 @@ export async function allocateNextQuestion(
 ): Promise<AllocatedQuestion | null> {
   // 1. Authoritative Session & Config Lookup (Locked exclusively)
   const sessionRes = await client.query(`
-    SELECT s.id, s.user_id, s.domain, s.experience_level, s.current_step, 
+    SELECT s.id, s.user_id, s.capability_node_id, s.domain, s.experience_level, s.current_step, 
            s.started_at, s.status,
            COALESCE(s.selected_question_count, c.total_questions) AS total_questions, COALESCE(s.selected_duration_minutes, c.total_questions * 0 + c.duration_minutes) AS duration_minutes, c.min_difficulty, 
            c.max_difficulty, c.starting_difficulty,
