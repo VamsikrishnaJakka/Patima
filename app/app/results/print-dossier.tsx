@@ -8,10 +8,10 @@ export function PrintDossier({data,onClose}:{data:AssessmentDossierResponse;onCl
   <style jsx global>{`
    @page{size:A4 portrait;margin:14mm}
    @media print{
-    body>*:not(.patima-print-dossier){display:none!important}
-    .patima-print-dossier{position:static!important;display:block!important;overflow:visible!important;background:white!important;color:#0f172a!important}
+    body *{visibility:hidden!important}
+    .patima-print-dossier,.patima-print-dossier *{visibility:visible!important}
+    .patima-print-dossier{position:absolute!important;left:0!important;top:0!important;width:100%!important;display:block!important;overflow:visible!important;background:white!important;color:#0f172a!important}
     .patima-print-toolbar{display:none!important}
-    .patima-print-page{break-after:page}
     .patima-print-question{break-inside:avoid}
     .patima-print-dossier pre{white-space:pre-wrap;overflow-wrap:anywhere}
    }
