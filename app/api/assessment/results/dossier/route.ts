@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server';
 import {requireCandidate,withAuthenticatedClient} from '@/lib/server-auth';
 import {handleRouteError} from '@/lib/api-errors';
+import {getAssessmentDisplayTitle}from '@/lib/assessment-catalog';
 
 export const dynamic='force-dynamic';
 type DossierStatus='CORRECT'|'WRONG'|'SKIPPED'|'RECORDED';
