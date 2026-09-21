@@ -19,7 +19,8 @@ gate(1,'Assessment completion creates a persisted evidence record',()=>{
 gate(2,'Capability state is derived separately from assessment completion',()=>{
  assert(allocator.includes('INSERT INTO user_capability_states'),'capability state is not updated');
  assert(allocator.includes("scoreRatio >= 0.70"),'capability promotion rule is missing');
- assert(allocator.includes("state='DEVELOPING'"),'developing state is not preserved');
+ assert(allocator.includes("ELSE 'DEVELOPING'"),'developing state fallback is not preserved');
+ assert(allocator.includes("WHEN $3='DEMONSTRATED'"),'demonstrated promotion rule is not preserved');
 });
 
 gate(3,'Completed assessment count is independent from evidence count',()=>{
