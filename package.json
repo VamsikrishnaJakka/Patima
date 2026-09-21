@@ -32,7 +32,8 @@
     "test:assessment-ux": "tsx tests/assessment_ux_gate.ts",
     "test:execution-engine": "tsx tests/execution_engine_gate.ts",
     "test:assessment-contract-dossier": "tsx tests/assessment_contract_dossier_gate.ts",
-    "test:evidence-profile-hackathon": "tsx tests/evidence_profile_hackathon_gate.ts"
+    "test:evidence-profile-hackathon": "tsx tests/evidence_profile_hackathon_gate.ts",
+    "test:assessment-context": "tsx tests/assessment_context_gate.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.5-r.5",
