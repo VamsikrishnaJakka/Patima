@@ -111,6 +111,11 @@ function Setup(){
      </button>
     </div>
 
+    <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-950/20 p-5">
+     <p className="text-sm font-semibold text-amber-200">Important: this assessment is forward-only</p>
+     <p className="mt-2 text-sm leading-6 text-amber-100/70">Once you submit or skip a question, it is committed and you cannot return to that question. Use <b>Run</b> and <b>Run Tests</b> to check coding answers before moving forward. Review each question, constraint, and visible test case carefully before submitting.</p>
+    </div>
+
     <div className="panel mt-6 p-6">
      <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">1. Experience level</p>
      <div className="mt-3 grid gap-3 md:grid-cols-3">
