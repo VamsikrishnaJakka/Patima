@@ -161,6 +161,7 @@ function Workspace(){
   </header>
   <main className="grid h-[calc(100vh-6rem)] grid-cols-[34%_66%]">
    <section className="overflow-y-auto border-r border-white/10 bg-[#071019] p-6">
+    <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-950/15 px-3 py-2 text-[10px] leading-5 text-amber-100/70"><b className="text-amber-200">Forward-only:</b> once you Submit or Skip, this question is committed and you cannot return to it. Use Run and Run Tests before advancing.</div>
     <div className="mb-5">
      <div className="flex items-center gap-2"><div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Question {q.stepIndex}</div><span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-500">{q.questionType==='THEORY'?'Theory':'Coding'}</span></div>
      <h1 className="mt-2 text-xl font-semibold leading-7 text-white">{state.assessment?.title||'SQL Assessment'}</h1>
@@ -245,7 +246,7 @@ function Workspace(){
        </div>}
       </div>}
       {consoleTab==='tests'&&<div>
-       {testResult&&<div className="mb-4 flex items-center gap-4"><span className={testResult.verdict==='ACCEPTED'?'text-emerald-300':'text-rose-300'}>{testResult.verdict}</span><span className="text-slate-500">{testResult.summary?.publicPassed??testResult.publicTestsPassed??0}/{testResult.summary?.publicTotal??testResult.publicTestsTotal??0} public tests</span><span className="text-slate-500">{testResult.executionTimeMs}ms</span></div>}
+       {testResult&&<><div className="mb-3 rounded border border-sky-500/20 bg-sky-500/5 p-3 text-[10px] leading-5 text-slate-400"><b className="text-sky-300">Public test contract:</b> every visible case tests the same question requirement against a different fixture. A case may add rows or edge conditions, but it must not ask for a different output, filter, sort, or calculation.</div><div className="mb-4 flex items-center gap-4"><span className={testResult.verdict==='ACCEPTED'?'text-emerald-300':'text-rose-300'}>{testResult.verdict}</span><span className="text-slate-500">{testResult.summary?.publicPassed??testResult.publicTestsPassed??0}/{testResult.summary?.publicTotal??testResult.publicTestsTotal??0} public tests</span><span className="text-slate-500">{testResult.executionTimeMs}ms</span></div></>}
        {!testResult&&!error&&<div className="text-slate-600">Run Tests to see every visible case.</div>}
        {(testResult?.cases||testResult?.testCases||[]).map((t:any,i:number)=><div key={t.id||i} className="mb-3">
         <div className="mb-2 flex justify-between rounded border border-white/10 p-2"><span className="text-slate-300">Case {i+1} · {t.name}</span><span className={t.status==='AC'?'text-emerald-300':'text-rose-300'}>{t.status}</span></div>
