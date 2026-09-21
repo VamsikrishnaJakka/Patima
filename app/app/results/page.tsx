@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useState,Suspense} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {AppShell} from '@/components/AppShell';
 import {StatusPill} from '@/components/StatusPill';
@@ -7,7 +7,7 @@ import {StatusPill} from '@/components/StatusPill';
 type QuestionReport={stepIndex:number;question:string;questionType:string;responseMode:string;expectedTimeComplexity?:string|null;expectedSpaceComplexity?:string|null;candidateResponse?:string|null;isCorrect?:boolean|null;timeTakenSeconds?:number|null;verificationStatus?:string|null;publicTestsPassed?:number;publicTestsTotal?:number;hiddenTestsPassed?:number;hiddenTestsTotal?:number;executionTimeMs?:number|null;verificationOutput?:any};
 type Result={session_id:string;capability:string;target_role:string;seniority:string;outcome?:string|null;submitted_at:string;verification_tier?:string|null;summary?:string|null;context?:string|null;question_report?:QuestionReport[]};
 
-export default function Results(){
+function ResultsContent(){
  const params=useSearchParams();
  const sessionId=params.get('sessionId');
  const[r,setR]=useState<Result[]>([]);
@@ -56,4 +56,8 @@ export default function Results(){
    })}
   </div>
  </AppShell>;
+}
+
+export default function Results(){
+ return <Suspense fallback={<AppShell><div className="panel p-8 text-center text-sm text-slate-500">Loading assessment report…</div></AppShell>}><ResultsContent /></Suspense>;
 }
