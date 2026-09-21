@@ -34,7 +34,7 @@ export async function POST(request:Request){
        ON ucs.user_id=er.user_id AND ucs.capability_node_id=er.capability_node_id
      WHERE er.id=$1 AND er.user_id=$2
      ON CONFLICT (evidence_id) DO UPDATE
-       SET revoked_at=NULL
+       SET token=encode(gen_random_bytes(24),'hex'), revoked_at=NULL
      RETURNING token`,
     [evidenceId,s.userId]
    );
