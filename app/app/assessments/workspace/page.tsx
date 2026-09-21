@@ -275,18 +275,22 @@ function Workspace(){
    <div className="flex items-center gap-2">
     {q.questionType!=='THEORY'&&<><button type="button" onClick={()=>void run()} disabled={running||!answer.trim()} title="Execute the current answer without progressing" className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-300 hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-40">{running?'Running…':<>Run <span className="ml-1 text-slate-600">Ctrl+Enter</span></>}</button>
     <button type="button" onClick={()=>void runTests()} disabled={testing||!answer.trim()} title="Run all visible/public tests" className="rounded-md border border-emerald-500/30 px-4 py-2 text-xs text-emerald-300 hover:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-40">{testing?'Testing…':<>Run Tests <span className="ml-1 text-emerald-500/60">Ctrl+Shift+Enter</span></>}</button></>}
-    <button type="button" onClick={()=>q.stepIndex===q.totalQuestions?setFinishPrompt('SKIP'):void skip()} disabled={submitting||skipping||seconds===0} className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-40">{skipping?'Skipping…':'Skip'}</button>
+    <button type="button" onClick={()=>setFinishPrompt('SKIP')} disabled={submitting||skipping||seconds===0} className="rounded-md border border-white/10 px-4 py-2 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-40">{skipping?'Skipping…':'Skip'}</button>
     <button type="button" onClick={()=>q.stepIndex===q.totalQuestions?setFinishPrompt('SUBMIT'):void submit()} disabled={submitting||skipping||!answer.trim()||seconds===0} title="Submit this response and continue to the next question" className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">{submitting?'Submitting…':q.stepIndex===q.totalQuestions?'Submit Test →':'Submit Step →'}</button>
    </div>
   </footer>
   {finishPrompt&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
    <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b141d] p-6 shadow-2xl">
-    <div className="text-xs font-semibold uppercase tracking-widest text-emerald-300">Assessment complete</div>
-    <h2 className="mt-2 text-xl font-semibold text-white">Submit this test?</h2>
-    <p className="mt-3 text-sm leading-6 text-slate-400">{finishPrompt==='SKIP'?'You skipped the last question. You can submit the test now or continue and answer/review the final question.':'You reached the last question. You can submit the test now or continue reviewing your final response.'}</p>
+    <div className="text-xs font-semibold uppercase tracking-widest text-emerald-300">{finishPrompt==='SKIP'&&q.stepIndex<q.totalQuestions?'Question action':'Assessment complete'}</div>
+    <h2 className="mt-2 text-xl font-semibold text-white">{finishPrompt==='SKIP'&&q.stepIndex<q.totalQuestions?'Skip this question?':'Submit this test?'}</h2>
+    <p className="mt-3 text-sm leading-6 text-slate-400">{finishPrompt==='SKIP'
+      ? q.stepIndex<q.totalQuestions
+        ? 'Your current response will not be submitted. The question will be recorded as skipped and you will move to the next question.'
+        : 'You skipped the last question. You can submit the test now or continue and answer/review the final question.'
+      : 'You reached the last question. You can submit the test now or continue reviewing your final response.'}</p>
     <div className="mt-6 flex justify-end gap-2">
-     <button type="button" onClick={()=>setFinishPrompt(null)} className="rounded-md border border-white/10 px-4 py-2 text-sm text-slate-300">Continue</button>
-     <button type="button" onClick={()=>{const action=finishPrompt;setFinishPrompt(null);if(action==='SKIP')void skip();else void submit();}} className="btn-primary">{finishPrompt==='SKIP'?'Submit Test':'Submit Test'} →</button>
+     <button type="button" onClick={()=>setFinishPrompt(null)} className="rounded-md border border-white/10 px-4 py-2 text-sm text-slate-300">{finishPrompt==='SKIP'&&q.stepIndex<q.totalQuestions?'Cancel':'Continue'}</button>
+     <button type="button" onClick={()=>{const action=finishPrompt;setFinishPrompt(null);if(action==='SKIP')void skip();else void submit();}} className="btn-primary">{finishPrompt==='SKIP'&&q.stepIndex<q.totalQuestions?'Skip Question':'Submit Test'} →</button>
     </div>
    </div>
   </div>}
