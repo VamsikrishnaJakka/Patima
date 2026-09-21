@@ -179,7 +179,7 @@ function Workspace(){
       <div className="flex justify-between gap-4"><span className="text-slate-500">Expected space complexity</span><span className="font-mono text-slate-200">{q.expectedSpaceComplexity||'Not specified'}</span></div>
       <div className="flex justify-between gap-4"><span className="text-slate-500">Question type</span><span className="text-slate-200">{q.questionType||'SQL coding'}</span></div>
      </div>
-     {q.questionType==='CODING' && q.conceptRubric && typeof q.conceptRubric==='object' && Object.keys(q.conceptRubric as Record<string,unknown>).length>0 && <div className="mt-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
+     {q.questionType==='CODING' && Boolean(q.conceptRubric) && typeof q.conceptRubric==='object' && Object.keys(q.conceptRubric as Record<string,unknown>).length>0 && <div className="mt-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Requirements checklist</div>
       <div className="mt-3 space-y-2 text-xs leading-5 text-slate-300">
        {Object.entries(q.conceptRubric as Record<string,unknown>).map(([key,value])=><div key={key}><span className="text-slate-500">{key.replace(/([A-Z])/g,' $1').replace(/^./,s=>s.toUpperCase())}:</span> <span className="text-slate-300">{typeof value === 'string' ? value : JSON.stringify(value)}</span></div>)}
