@@ -40,6 +40,15 @@ CREATE POLICY p_public_evidence_shares_candidate
     candidate_user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
   );
 
+DROP POLICY IF EXISTS p_public_evidence_shares_public_inspection ON public_evidence_shares;
+CREATE POLICY p_public_evidence_shares_public_inspection
+  ON public_evidence_shares
+  FOR SELECT TO PUBLIC
+  USING (
+    revoked_at IS NULL
+    AND token = NULLIF(current_setting('app.public_share_token', true), '')
+  );
+
 DROP POLICY IF EXISTS p_public_evidence_shares_insert_candidate ON public_evidence_shares;
 CREATE POLICY p_public_evidence_shares_insert_candidate
   ON public_evidence_shares
