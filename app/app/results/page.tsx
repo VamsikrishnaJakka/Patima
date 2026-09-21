@@ -8,7 +8,7 @@ import {PrintDossier} from './print-dossier';
 import type {AssessmentDossierResponse} from '@/app/api/assessment/results/dossier/route';
 
 type QuestionReport={stepIndex:number;question:string;questionType:string;responseMode:string;candidateResponse?:string|null;isCorrect?:boolean|null;timeTakenSeconds?:number|null;verificationStatus?:string|null;publicTestsPassed?:number;publicTestsTotal?:number;hiddenTestsPassed?:number;hiddenTestsTotal?:number;executionTimeMs?:number|null};
-type Result={session_id:string;capability:string;target_role:string;seniority:string;outcome?:string|null;submitted_at:string;verification_tier?:string|null;summary?:string|null;context?:string|null;question_report?:QuestionReport[]};
+type Result={session_id:string;capability:string;domain_title:string;experience_level:string;target_role:string|null;seniority:string|null;outcome?:string|null;submitted_at:string;verification_tier?:string|null;summary?:string|null;context?:string|null;question_report?:QuestionReport[]};
 
 function ResultsContent(){
  const params=useSearchParams(),sessionId=params.get('sessionId');
@@ -41,7 +41,7 @@ function ResultsContent(){
     const skipped=report.filter(q=>q.candidateResponse==='[SKIPPED]').length,totalTime=report.reduce((n,q)=>n+Number(q.timeTakenSeconds||0),0);
     return <article key={x.session_id} className="panel p-5">
      <div className="flex flex-wrap items-start justify-between gap-4">
-      <div><h2 className="font-medium">{x.capability}</h2><div className="mt-1 text-xs text-slate-600">{x.target_role} · {x.seniority} · {new Date(x.submitted_at).toLocaleString()}</div></div>
+      <div><h2 className="font-medium">{x.domain_title||x.capability}</h2><div className="mt-1 text-xs text-slate-600">Level: {String(x.experience_level||'').toLowerCase()||'—'}{x.target_role?` · ${x.target_role}`:''}{x.seniority?` · ${x.seniority}`:''} · {new Date(x.submitted_at).toLocaleString()}</div></div>
       <div className="flex items-center gap-3"><StatusPill value={x.outcome||'PROVISIONAL'}/><button type="button" onClick={()=>void openDossier(x.session_id)} disabled={exporting} className="btn-primary text-xs disabled:opacity-50">{exporting?'Preparing…':'Export analytical PDF'}</button></div>
      </div>
      <div className="mt-5 grid gap-3 sm:grid-cols-4">
