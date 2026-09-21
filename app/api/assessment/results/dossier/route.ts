@@ -14,7 +14,7 @@ export interface QuestionDossierItem {
  analysis:{diagnosis:string;actionableAdvice:string;optimizationNote:string;evidence:string[]};
 }
 export interface AssessmentDossierResponse {
- session:{id:string;domain:string;domainTitle:string;targetRole:string;seniority:string;experienceLevel:string;startedAt:string;submittedAt:string|null;outcome:string;finalTheta:number|null;verificationTier:string};
+ session:{id:string;domain:string;domainTitle:string;targetRole:string|null;seniority:string|null;experienceLevel:string;startedAt:string;submittedAt:string|null;outcome:string;finalTheta:number|null;verificationTier:string};
  candidate:{id:string;name:string;handle:string};
  metrics:{totalQuestions:number;scoredCorrect:number;skipped:number;failed:number;recorded:number;totalDurationSeconds:number;averageTimePerQuestion:number};
  conceptGaps:Array<{concept:string;stepIndex:number;status:DossierStatus;reason:string}>;
@@ -36,7 +36,7 @@ export async function GET(request:Request){
   if(!sessionId)return NextResponse.json({error:'MISSING_REQUIRED_FIELDS'},{status:400});
   const dossier=await withAuthenticatedClient(async(s,client)=>{
    const sessionQuery=await client.query(
-    `SELECT s.id,s.domain,s.domain_slug,s.target_role,s.seniority,s.experience_level,s.status,s.started_at,s.submitted_at,s.outcome,s.final_theta,
+    `SELECT s.id,s.domain,s.domain_slug,s.target_role,s.seniority,s.target_role_source,s.seniority_source,s.experience_level,s.status,s.started_at,s.submitted_at,s.outcome,s.final_theta,
             COALESCE(s.selected_question_count,5) AS total_questions,er.verification_tier,u.name,u.handle
      FROM assessment_sessions s JOIN user_accounts u ON u.id=s.user_id
      LEFT JOIN LATERAL (SELECT verification_tier FROM evidence_records WHERE assessment_session_id=s.id ORDER BY recorded_at DESC LIMIT 1) er ON TRUE
@@ -98,8 +98,8 @@ export async function GET(request:Request){
     };
    });
    const totalQuestions=questions.length||Number(sess.total_questions);
-   return {session:{id:sess.id,domain:sess.domain,domainTitle:sess.domain==='sql-window-functions'?'SQL Window Functions':sess.domain,targetRole:sess.target_role,
-    seniority:sess.seniority,experienceLevel:sess.experience_level,startedAt:sess.started_at,submittedAt:sess.submitted_at,outcome:sess.outcome||'PROVISIONAL',
+   return {session:{id:sess.id,domain:sess.domain,domainTitle:getAssessmentDisplayTitle(sess.domain_slug||sess.domain,sess.experience_level),targetRole:sess.target_role_source==='USER_PROVIDED'?sess.target_role:null,
+    seniority:sess.seniority_source==='USER_PROVIDED'?sess.seniority:null,experienceLevel:sess.experience_level,startedAt:sess.started_at,submittedAt:sess.submitted_at,outcome:sess.outcome||'PROVISIONAL',
     finalTheta:sess.final_theta==null?null:Number(sess.final_theta),verificationTier:sess.verification_tier||'PLATFORM_ATTESTED'},
     candidate:{id:s.userId,name:sess.name,handle:sess.handle},
     metrics:{totalQuestions,scoredCorrect,skipped,failed,recorded,totalDurationSeconds:totalDuration,averageTimePerQuestion:totalQuestions?Math.round(totalDuration/totalQuestions):0},
