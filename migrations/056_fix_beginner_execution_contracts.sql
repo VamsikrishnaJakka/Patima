@@ -171,3 +171,20 @@ WHERE f.id=v.family_id
   AND v.experience_level='BEGINNER'
   AND v.variant_code='VAR_A'
   AND regexp_replace(f.family_code,'^.*_F','')::int IN (3,4,5,8,14,17);
+
+
+-- Author explicit requirement checklists so the candidate can verify the exact contract
+-- before submitting. These are instructional metadata, not executable scoring logic.
+UPDATE question_variants v
+SET concept_rubric = CASE regexp_replace(f.family_code,'^.*_F','')::int
+  WHEN 3 THEN jsonb_build_object('requiredOutput','order_id, amount','requiredFilter','status = PAID','requiredOrdering','order_id ascending','edgeCases','Additional PAID rows must also be returned')
+  WHEN 4 THEN jsonb_build_object('requiredOutput','customer_id, total_amount','requiredCalculation','SUM(amount) per customer','requiredGrouping','customer_id','requiredOrdering','customer_id ascending','edgeCases','Additional customers must be included')
+  WHEN 5 THEN jsonb_build_object('requiredOutput','order_id, amount','requiredOrdering','amount descending; order_id ascending as tie-breaker','edgeCases','Equal amounts must remain deterministic')
+  WHEN 8 THEN jsonb_build_object('requiredOutput','order_id, order_date','requiredOrdering','order_date ascending; order_id ascending as tie-breaker','edgeCases','Same-date orders must be deterministic')
+  WHEN 14 THEN jsonb_build_object('requiredOutput','customer_id, order_id, row_num','requiredCalculation','ROW_NUMBER() within each customer','requiredPartition','PARTITION BY customer_id','requiredOrdering','order_date ascending; order_id ascending as tie-breaker','edgeCases','Same-date orders require deterministic numbering')
+  WHEN 17 THEN jsonb_build_object('requiredOutput','customer_id, order_id, order_date','requiredCalculation','ROW_NUMBER() within each customer and keep row_num = 1','requiredPartition','PARTITION BY customer_id','requiredOrdering','order_date descending; order_id descending as tie-breaker','edgeCases','Same-date latest orders require deterministic tie handling')
+  ELSE v.concept_rubric
+END
+FROM question_families f
+WHERE f.id=v.family_id AND f.domain='sql-window-functions' AND v.experience_level='BEGINNER'
+  AND v.variant_code='VAR_A' AND regexp_replace(f.family_code,'^.*_F','')::int IN (3,4,5,8,14,17);
