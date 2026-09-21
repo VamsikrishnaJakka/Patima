@@ -24,7 +24,7 @@ gate(2,'Capability state is derived separately from assessment completion',()=>{
 });
 
 gate(3,'Completed assessment count is independent from evidence count',()=>{
- assert(overview.includes("FROM assessment_sessions WHERE user_id=$1 AND status='VERIFIED'"),'completed count still derives from evidence rows');
+ assert(overview.includes('FROM assessment_sessions WHERE user_id=$1 AND status IN (\'VERIFIED\',\'SUBMITTED\')'),'completed count does not derive directly from assessment sessions');
 });
 
 gate(4,'Evidence dossier remains inspectable and linked to execution runs',()=>{
