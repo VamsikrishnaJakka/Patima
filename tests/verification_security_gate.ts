@@ -161,19 +161,23 @@ async function run(){
     console.log('PASS: no verification evidence means no adaptive advancement.');
     await expireSession(client,session);
 
-    console.log('[SECURITY 7] Failed server verification cannot advance...');
+    console.log('[SECURITY 7] Failed server verification records the failure and advances...');
     const failedSession=await createSession(client,userId);
     const failedQuestion=await allocateNextQuestion(client,{sessionId:failedSession,userId});
     assert.ok(failedQuestion);
-    await assert.rejects(
-      allocateNextQuestion(client,{
-        sessionId:failedSession,userId,submittedCode:'SELECT 1;',isCorrect:true,
-        expectedVariantId:failedQuestion!.variantId,
-        verificationReport:{...accepted,verdict:'WRONG_ANSWER'}
-      }),
-      /VERIFICATION_FAILED_NO_ADVANCE/
-    );
-    console.log('PASS: failed verification cannot advance.');
+    const failedNext=await allocateNextQuestion(client,{
+      sessionId:failedSession,userId,submittedCode:'SELECT 1;',isCorrect:true,
+      expectedVariantId:failedQuestion!.variantId,
+      verificationReport:{...accepted,verdict:'WRONG_ANSWER',allPassed:false,isCorrect:false,executionDigest:accepted.executionDigest+'-failed'}
+    });
+    assert.ok(failedNext);
+    const failedState=await client.query(`SELECT current_step,status FROM assessment_sessions WHERE id=$1`,[failedSession]);
+    assert.equal(Number(failedState.rows[0].current_step),2);
+    assert.equal(failedState.rows[0].status,'IN_PROGRESS');
+    const failedLog=await client.query(`SELECT is_correct,verification_status FROM assessment_adaptive_logs WHERE session_id=$1 AND step_index=1`,[failedSession]);
+    assert.equal(failedLog.rows[0].is_correct,false);
+    assert.equal(failedLog.rows[0].verification_status,'FAILED');
+    console.log('PASS: failed server verification is recorded, cannot be forged as correct, and advances.');
     await expireSession(client,failedSession);
 
     console.log('[SECURITY 8] Verification cannot be replayed against a different reservation...');
