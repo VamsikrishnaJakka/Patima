@@ -71,10 +71,14 @@ export default function Dashboard(){
     </section>
 
     <section>
-      <div className="mb-3 flex items-center justify-between"><div><p className="eyebrow text-red-600">SANDBOXES</p><h2 className="mt-1 text-base font-semibold text-slate-950">Practice without affecting your record</h2></div><Link href="/app/sandboxes" className="text-xs font-semibold text-red-600 hover:text-red-700">Open sandboxes →</Link></div>
-      <div className="grid gap-3 md:grid-cols-2">
-       <Link href="/app/sandboxes" className="panel p-5 transition hover:border-red-200 hover:shadow-md"><div className="flex items-center gap-2 text-xs font-semibold text-slate-950"><FlaskConical className="h-4 w-4 text-red-600"/>SQL Query Sandbox</div><p className="mt-2 text-xs leading-5 text-slate-500">Run SELECTs against a fixed customer_orders fixture. No submission, no evidence record, no effect on capability state.</p><div className="mt-4 flex flex-wrap gap-2"><span className="pill border-slate-200 bg-slate-50 text-slate-500">DuckDB</span><span className="pill border-slate-200 bg-slate-50 text-slate-500">2s limit</span><span className="pill border-slate-200 bg-slate-50 text-slate-500">Read-only fixture</span></div></Link>
-       <Link href="/app/learning" className="panel p-5 transition hover:border-red-200 hover:shadow-md"><div className="flex items-center gap-2 text-xs font-semibold text-slate-950"><BookOpen className="h-4 w-4 text-red-600"/>Guided practice</div><p className="mt-2 text-xs leading-5 text-slate-500">Use a roadmap step, then move into an assessment when you are ready to measure the capability.</p><span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-red-600">Open learning <ArrowRight className="h-3.5 w-3.5"/></span></Link>
+      <div className="mb-3 flex items-center justify-between"><div><p className="eyebrow text-red-600">SANDBOX LABS</p><h2 className="mt-1 text-base font-semibold text-slate-950">Real tools. Coming soon.</h2></div><Link href="/app/sandboxes" className="text-xs font-semibold text-red-600 hover:text-red-700">View all labs →</Link></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+       {[
+        ['Apache Spark / PySpark','Data Engineering','Distributed processing'],
+        ['Kubernetes','DevOps','Pods, services, scaling'],
+        ['Linux','Systems','Processes, signals, shell'],
+        ['API Testing','Testing','Requests, assertions, contracts']
+       ].map(([name,category,desc])=><Link key={name} href="/app/sandboxes" className="panel p-4 transition hover:border-red-200 hover:shadow-md"><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-slate-900">{name}</span><span className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-red-600">Soon</span></div><p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{category}</p><p className="mt-1.5 text-xs text-slate-500">{desc}</p></Link>)}
       </div>
     </section>
 
