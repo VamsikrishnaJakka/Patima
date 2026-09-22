@@ -23,6 +23,7 @@ export async function POST(request:Request){
   const targetRole=typeof body.targetRole==='string'&&body.targetRole.trim()?body.targetRole.trim():null;
   const seniority=typeof body.seniority==='string'&&['JUNIOR','MID','SENIOR'].includes(body.seniority.toUpperCase())?body.seniority.toUpperCase():null;
   if(!levels.includes(experienceLevel))return NextResponse.json({error:'Invalid experience level'},{status:400});
+  if(experienceLevel==='BEGINNER')return NextResponse.json({error:'ABSOLUTE_BEGINNER_ROADMAP_REQUIRED',message:'Absolute beginners should start with the guided roadmap.',roadmapUrl:'/app/roadmap?domain='+encodeURIComponent(domain)},{status:409});
   if(!questionChoices.includes(questionCount))return NextResponse.json({error:'Choose 5, 10, 15, or 20 questions'},{status:400});
   const assessment=getAssessment(domain);
   if(!assessment)return NextResponse.json({error:'Assessment domain is unavailable'},{status:400});
