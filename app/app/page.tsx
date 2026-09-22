@@ -92,7 +92,7 @@ export default function Dashboard(){
   },[]);
 
   return (
-    <AppShell theme="redwhite">
+    <AppShell>
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow text-red-600">PATIMA FEED</p>
