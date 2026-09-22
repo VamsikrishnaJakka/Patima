@@ -13,7 +13,7 @@ const technologies=[
 ] as const;
 
 const levels=[
- ['BEGINNER','Beginner','Foundational concepts and straightforward problem solving'],
+ ['BEGINNER','Absolute beginner','Start with a guided roadmap before assessment'],
  ['INTERMEDIATE','Intermediate','Multi-step reasoning, edge cases, and practical implementation'],
  ['ADVANCED','Advanced','Complex reasoning, boundaries, and deeper technical behavior'],
 ] as const;
@@ -39,6 +39,7 @@ function Setup(){
  const minutes=useMemo(()=>duration(level,count),[level,count]);
 
  const start=async()=>{
+  if(level==='BEGINNER'){router.push('/app/roadmap?domain='+encodeURIComponent(domain));return;}
   setLoading(true);
   setError('');
   setActive(null);
@@ -102,12 +103,12 @@ function Setup(){
     </p>
 
     <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-5">
-     <p className="text-sm font-semibold text-emerald-200">I’m a complete beginner</p>
+     <p className="text-sm font-semibold text-emerald-200">Absolute beginner</p>
      <p className="mt-2 text-sm leading-6 text-slate-400">
-      I don’t know this technology yet. Take me to the learning roadmap instead of testing me.
+      If you are new to this technology, PATIMA will take you to the guided roadmap instead of starting an assessment.
      </p>
      <button type="button" onClick={()=>router.push('/app/roadmap?domain='+encodeURIComponent(domain))} className="mt-3 text-xs font-medium text-emerald-300">
-      Start learning →
+      Go to roadmap →
      </button>
     </div>
 
@@ -120,7 +121,7 @@ function Setup(){
      <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">1. Experience level</p>
      <div className="mt-3 grid gap-3 md:grid-cols-3">
       {levels.map(([id,label,desc])=>(
-       <button key={id} type="button" onClick={()=>setLevel(id)} className={'rounded-lg border p-4 text-left '+(level===id?'border-emerald-500/60 bg-emerald-950/20':'border-white/10 bg-slate-950/40')}>
+       <button key={id} type="button" onClick={()=>{if(id==='BEGINNER'){router.push('/app/roadmap?domain='+encodeURIComponent(domain));return;}setLevel(id)}} className={'rounded-lg border p-4 text-left '+(level===id?'border-emerald-500/60 bg-emerald-950/20':'border-white/10 bg-slate-950/40')}>
         <span className="block text-sm font-medium">{label}</span>
         <span className="mt-2 block text-xs leading-5 text-slate-500">{desc}</span>
        </button>
@@ -166,7 +167,7 @@ function Setup(){
      )}
 
      <button type="button" onClick={start} disabled={loading} className="btn-primary mt-6 w-full">
-      {loading?'Preparing your assessment…':'Start assessment →'}
+      {loading?'Preparing your assessment…':level==='BEGINNER'?'Open roadmap →':'Start assessment →'}
      </button>
     </div>
    </div>
