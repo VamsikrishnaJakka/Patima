@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {useEffect,useMemo,useState} from 'react';
 import {
   Activity,ArrowRight,CheckCircle2,Code2,Flame,GitCommitHorizontal,Mail,
-  Map,MessageCircle,ShieldCheck,Sparkles,Swords,Trophy,Users,BookOpen,FlaskConical
+  Map,MessageCircle,ShieldCheck,Sparkles,Swords,Trophy,Users
 } from 'lucide-react';
 import {AppShell} from '@/components/AppShell';
 import {StatusPill} from '@/components/StatusPill';
