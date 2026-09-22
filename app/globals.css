@@ -5,83 +5,70 @@
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
-body { background: #f8fafc; color: #0f172a; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { background: #e7ebef; color: #0f172a; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 a { color: inherit; text-decoration: none; }
 button, input, textarea, select { font: inherit; }
 
 @layer components {
   .panel { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
   .field { @apply block text-xs font-medium text-slate-600; }
-  .input, .textarea { @apply mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-red-400 focus:ring-1 focus:ring-red-200 disabled:cursor-not-allowed disabled:opacity-60; }
+  .input, .textarea { @apply mt-1.5 block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-red-400 focus:ring-1 focus:ring-red-200 disabled:cursor-not-allowed disabled:opacity-60; }
   .textarea { @apply min-h-28 resize-y leading-6; }
   .btn-primary { @apply inline-flex min-h-10 items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-ghost { @apply inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-ghost { @apply inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-50; }
   .alert { @apply rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs leading-5 text-red-700; }
-  .eyebrow { @apply text-[10px] font-semibold tracking-[0.18em] text-slate-400; }
+  .eyebrow { @apply text-[10px] font-semibold tracking-[0.18em] text-slate-500; }
   .label { @apply text-xs font-medium uppercase tracking-wider text-slate-500; }
   .pill { @apply inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-medium uppercase tracking-wide; }
   .pill-good { @apply border-red-200 bg-red-50 text-red-700; }
-  .nav-item { @apply flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 transition hover:bg-red-50 hover:text-red-700; }
+  .nav-item { @apply flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 transition hover:bg-red-50 hover:text-red-700; }
   .nav-item-active { @apply bg-red-50 font-medium text-red-700; }
 }
 
-/* PATIMA site-wide red + white visual system. */
-.patima-site {
-  min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
-}
-.patima-site .bg-\[\#071019\] { background: #f8fafc !important; }
-.patima-site .bg-slate-950 { background: #ffffff !important; }
-.patima-site .bg-slate-900 { background: #ffffff !important; }
-.patima-site .bg-slate-800 { background: #f1f5f9 !important; }
-.patima-site .bg-black\/20 { background: #f8fafc !important; }
-.patima-site .text-slate-100 { color: #0f172a !important; }
-.patima-site .text-slate-200 { color: #1e293b !important; }
-.patima-site .text-slate-300 { color: #334155 !important; }
-.patima-site .text-slate-400 { color: #64748b !important; }
+.patima-site { min-height: 100vh; background: #e7ebef; color: #0f172a; }
+.patima-site > header { background: rgba(244,246,248,.96) !important; }
+.patima-site > div > aside { background: #e4e8ec; }
+.patima-site > div > main { background: #e7ebef !important; }
+.patima-site .panel { background: #f7f8fa !important; border-color: #d5dbe1 !important; }
+.patima-site .bg-white { background: #f7f8fa !important; }
+.patima-site .bg-slate-50 { background: #eef1f4 !important; }
+.patima-site .border-slate-200 { border-color: #d5dbe1 !important; }
+.patima-site .border-slate-100 { border-color: #e0e4e8 !important; }
+.patima-site .text-slate-950 { color: #0f172a !important; }
+.patima-site .text-slate-900 { color: #18212b !important; }
+.patima-site .text-slate-800 { color: #25313d !important; }
+.patima-site .text-slate-700 { color: #334155 !important; }
+.patima-site .text-slate-600 { color: #52606d !important; }
 .patima-site .text-slate-500 { color: #64748b !important; }
-.patima-site .text-slate-600 { color: #94a3b8 !important; }
+.patima-site .text-slate-400 { color: #7b8794 !important; }
 .patima-site .text-emerald-200,
 .patima-site .text-emerald-300,
-.patima-site .text-emerald-400 { color: #dc2626 !important; }
+.patima-site .text-emerald-400,
 .patima-site .text-blue-300,
 .patima-site .text-blue-400,
-.patima-site .text-blue-500 { color: #dc2626 !important; }
+.patima-site .text-blue-500,
 .patima-site .text-purple-300,
-.patima-site .text-purple-400 { color: #dc2626 !important; }
+.patima-site .text-purple-400,
 .patima-site .text-amber-300,
 .patima-site .text-amber-400 { color: #dc2626 !important; }
-.patima-site .text-rose-300,
-.patima-site .text-rose-400 { color: #dc2626 !important; }
-.patima-site .border-white\/10,
-.patima-site .border-white\/5 { border-color: #e2e8f0 !important; }
 .patima-site .border-emerald-400\/50,
 .patima-site .border-emerald-500\/20,
-.patima-site .border-emerald-500\/30 { border-color: #fecaca !important; }
+.patima-site .border-emerald-500\/30,
+.patima-site .border-blue-400\/30,
+.patima-site .border-blue-500\/30,
+.patima-site .border-purple-500\/30,
+.patima-site .border-amber-500\/30 { border-color: #fecaca !important; }
 .patima-site .bg-emerald-400\/55,
 .patima-site .bg-emerald-500 { background: #ef4444 !important; }
 .patima-site .bg-emerald-50,
 .patima-site .bg-emerald-950\/20,
-.patima-site .bg-emerald-950\/30 { background: #fef2f2 !important; }
-.patima-site .border-blue-400\/30,
-.patima-site .border-blue-500\/30,
-.patima-site .border-blue-800\/40,
-.patima-site .border-purple-500\/30,
-.patima-site .border-amber-500\/30 { border-color: #fecaca !important; }
+.patima-site .bg-emerald-950\/30,
 .patima-site .bg-blue-950\/60,
 .patima-site .bg-blue-950\/30,
 .patima-site .bg-purple-950\/30,
 .patima-site .bg-amber-950\/30 { background: #fef2f2 !important; }
-.patima-site .bg-white\/\[0\.02\] { background: #f8fafc !important; }
-.patima-site .border-white\/20 { border-color: #cbd5e1 !important; }
 .patima-site .hover\:bg-white\/5:hover { background: #fef2f2 !important; }
 .patima-site .hover\:border-white\/15:hover { border-color: #fecaca !important; }
-.patima-site .hover\:text-white:hover { color: #991b1b !important; }
 
-.patima-public {
-  min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
-}
-.patima-public .panel { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
+.patima-public { min-height: 100vh; background: #e7ebef; color: #0f172a; }
+.patima-public .panel { background: #f7f8fa !important; border-color: #d5dbe1 !important; }
