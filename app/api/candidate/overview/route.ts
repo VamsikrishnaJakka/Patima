@@ -12,7 +12,7 @@ export async function GET(){
   try{
     const session=await requireCandidate();
     return await withAuthenticatedClient(async(s,client)=>{
-      const states=await client.query("
+      const states=await client.query(`
         SELECT cn.slug,cn.name,ucs.state,ucs.evidence_count,
                ucs.last_observed_at,ucs.last_demonstrated_at,
                COUNT(er.id)::int AS evidence_rows
@@ -23,28 +23,28 @@ export async function GET(){
         WHERE ucs.user_id=$1
         GROUP BY cn.slug,cn.name,ucs.state,ucs.evidence_count,ucs.last_observed_at,ucs.last_demonstrated_at
         ORDER BY cn.name
-      ",[s.userId]);
+      `,[s.userId]);
 
-      const completed=await client.query("
+      const completed=await client.query(`
         SELECT COUNT(*)::int AS completed
         FROM assessment_sessions
         WHERE user_id=$1 AND status IN ('VERIFIED','SUBMITTED')
-      ",[s.userId]);
+      `,[s.userId]);
 
-      const evidenceCount=await client.query("
+      const evidenceCount=await client.query(`
         SELECT COUNT(*)::int AS count
         FROM evidence_records
         WHERE user_id=$1
-      ",[s.userId]);
+      `,[s.userId]);
 
-      const active=await client.query("
+      const active=await client.query(`
         SELECT id,domain,experience_level,current_step,selected_question_count,expires_at,target_role
         FROM assessment_sessions
         WHERE user_id=$1 AND status='IN_PROGRESS' AND expires_at>clock_timestamp()
         ORDER BY started_at DESC LIMIT 1
-      ",[s.userId]);
+      `,[s.userId]);
 
-      const telemetry=await client.query("
+      const telemetry=await client.query(`
         WITH activity_days AS (
           SELECT DISTINCT DATE(l.created_at) AS day
           FROM assessment_adaptive_logs l
@@ -96,9 +96,9 @@ export async function GET(){
             )
           END::int AS current_streak
         FROM (SELECT 1) seed
-      ",[s.userId]);
+      `,[s.userId]);
 
-      const recentEvidence=await client.query("
+      const recentEvidence=await client.query(`
         SELECT er.id,cn.name AS capability,er.summary,er.verification_tier,er.recorded_at,ucs.state
         FROM evidence_records er
         JOIN capability_nodes cn ON cn.id=er.capability_node_id
@@ -107,17 +107,17 @@ export async function GET(){
         WHERE er.user_id=$1
         ORDER BY er.recorded_at DESC
         LIMIT 6
-      ",[s.userId]);
+      `,[s.userId]);
 
-      const recentAssessments=await client.query("
+      const recentAssessments=await client.query(`
         SELECT id,domain,experience_level,outcome,submitted_at,updated_at
         FROM assessment_sessions
         WHERE user_id=$1 AND status IN ('VERIFIED','SUBMITTED') AND submitted_at IS NOT NULL
         ORDER BY submitted_at DESC
         LIMIT 6
-      ",[s.userId]);
+      `,[s.userId]);
 
-      const recentHackathons=await client.query("
+      const recentHackathons=await client.query(`
         SELECT a.id AS arena_id,a.title,a.domain,a.experience_level,a.status,a.scheduled_start,
                p.agreed_at
         FROM hackathon_participants p
@@ -125,7 +125,7 @@ export async function GET(){
         WHERE p.user_id=$1
         ORDER BY COALESCE(p.agreed_at,a.created_at) DESC
         LIMIT 6
-      ",[s.userId]);
+      `,[s.userId]);
 
       const feed=[
         ...recentEvidence.rows.map((r:any)=>({
