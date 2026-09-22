@@ -70,10 +70,12 @@ export default function Dashboard(){
 
   const activitySet=useMemo(()=>new Set(overview.metrics.activityDays||[]),[overview.metrics.activityDays]);
   const activityDots=useMemo(()=>{
+    const pad=(n:number)=>String(n).padStart(2,'0');
+    const localKey=(d:Date)=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
     const days=[];const today=new Date();
     for(let i=13;i>=0;i--){
-      const d=new Date(today);d.setHours(0,0,0,0);d.setDate(today.getDate()-i);
-      days.push(d.toISOString().slice(0,10));
+      const d=new Date(today);d.setHours(12,0,0,0);d.setDate(today.getDate()-i);
+      days.push(localKey(d));
     }
     return days;
   },[]);
